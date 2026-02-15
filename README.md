@@ -10,13 +10,13 @@
 
 **Step 1:** Add the marketplace
 
-```shell
+```bash
 /plugin marketplace add https://github.com/niketansrane/shanashma
 ```
 
 **Step 2:** Install the plugin
 
-```shell
+```bash
 /plugin install ado-flow@shanashma
 ```
 
@@ -30,20 +30,20 @@
 
 ## Examples
 
-```shell
+```bash
 /adoflow:workitems create a bug for login page crash
 /adoflow:workitems list my items
 /adoflow:workitems show #1234
 ```
 
-```shell
+```bash
 /adoflow:prs create a PR
 /adoflow:prs list my PRs
 /adoflow:prs show comments on PR #42
 /adoflow:prs approve PR #42
 ```
 
-```shell
+```bash
 /adoflow:pipelines list pipelines
 /adoflow:pipelines run Build-CI on main
 /adoflow:pipelines show build #567
