@@ -1,5 +1,9 @@
 # Shanashma
 
+<p align="center">
+  <img src="assets/shanashma.png" alt="Shanashma" width="600">
+</p>
+
 > Sharpen the tools you use every day.
 
 *Shanashma — Sanskrit for whetstone. A whetstone sharpens blades without replacing them. Shanashma sharpens the developer tools you already use — through Claude Code plugins that make daily interactions smoother, faster, and more natural.*
