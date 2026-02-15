@@ -30,22 +30,49 @@
 
 ## Examples
 
+### Work Items
+
 ```shell
 /adoflow:workitems create a bug for login page crash
+```
+
+```shell
 /adoflow:workitems list my items
+```
+
+```shell
 /adoflow:workitems show #1234
 ```
 
+### Pull Requests
+
 ```shell
 /adoflow:prs create a PR
-/adoflow:prs list my PRs
-/adoflow:prs show comments on PR #42
-/adoflow:prs approve PR #42
 ```
 
 ```shell
+/adoflow:prs list my PRs
+```
+
+```shell
+/adoflow:prs show comments on PR #42
+```
+
+```shell
+/adoflow:prs approve PR #42
+```
+
+### Pipelines
+
+```shell
 /adoflow:pipelines list pipelines
+```
+
+```shell
 /adoflow:pipelines run Build-CI on main
+```
+
+```shell
 /adoflow:pipelines show build #567
 ```
 
