@@ -1,0 +1,43 @@
+name: Validate Plugin Manifests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate-json:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
+      - name: Validate marketplace.json
+        run: jq . .claude-plugin/marketplace.json > /dev/null
+
+      - name: Validate all plugin.json files
+        run: |
+          for f in plugins/*/.claude-plugin/plugin.json; do
+            echo "Validating $f..."
+            jq . "$f" > /dev/null
+          done
+
+      - name: Check required fields in marketplace.json
+        run: |
+          jq -e '.name' .claude-plugin/marketplace.json > /dev/null
+          jq -e '.owner.name' .claude-plugin/marketplace.json > /dev/null
+          jq -e '.plugins | length > 0' .claude-plugin/marketplace.json > /dev/null
+          echo "All required marketplace fields present."
+
+      - name: Check required fields in plugin.json files
+        run: |
+          for f in plugins/*/.claude-plugin/plugin.json; do
+            echo "Checking $f..."
+            jq -e '.name' "$f" > /dev/null
+            jq -e '.version' "$f" > /dev/null
+            jq -e '.description' "$f" > /dev/null
+          done
+          echo "All required plugin fields present."
