@@ -4,12 +4,19 @@
   <img src="assets/shanashma.png" alt="Shanashma" width="600">
 </p>
 
-*Shanashma (शनश्म) — whetstone, in Sanskrit. Sharpen the tools you already use. Claude Code plugins for Azure DevOps and more.*
+*Shanashma (शनश्म) — whetstone, in Sanskrit. A whetstone is an abrasive stone used to sharpen the edges of knives. The plugins marketplace here is supposed to sharpen the tools you already use. Starting with Claude Code plugins for Azure DevOps for now.*
 
 ## Install
 
-```
+**Step 1:** Add the marketplace
+
+```shell
 /plugin marketplace add https://github.com/niketansrane/shanashma
+```
+
+**Step 2:** Install the plugin
+
+```shell
 /plugin install ado-flow@shanashma
 ```
 
@@ -23,16 +30,20 @@
 
 ## Examples
 
-```
+```shell
 /adoflow:workitems create a bug for login page crash
 /adoflow:workitems list my items
 /adoflow:workitems show #1234
+```
 
+```shell
 /adoflow:prs create a PR
 /adoflow:prs list my PRs
 /adoflow:prs show comments on PR #42
 /adoflow:prs approve PR #42
+```
 
+```shell
 /adoflow:pipelines list pipelines
 /adoflow:pipelines run Build-CI on main
 /adoflow:pipelines show build #567
