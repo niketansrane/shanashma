@@ -6,52 +6,22 @@
 
 *Shanashma (शनश्म) — whetstone, in Sanskrit. Sharpen the tools you already use. Claude Code plugins for Azure DevOps and more.*
 
-## Plugins
-
-| Plugin | Commands | Description |
-|--------|----------|-------------|
-| [ado-flow](plugins/ado-flow/) | `/adoflow:workitems` `/adoflow:prs` `/adoflow:pipelines` | Manage Azure DevOps using natural language |
-
-## Installation
-
-### Option 1: Plugin Marketplace (Recommended)
-
-Add this repo as a marketplace in Claude Code:
+## Install
 
 ```
 /plugin marketplace add https://github.com/niketansrane/shanashma
-```
-
-Then install a plugin:
-
-```
 /plugin install ado-flow@shanashma
 ```
 
-### Option 2: Manual Install (Offline)
+## What You Get
 
-Clone the repo and run the install script to copy plugin files directly into `~/.claude/`:
+| Command | What it does |
+|---------|-------------|
+| `/adoflow:workitems` | Create, list, query, and update work items |
+| `/adoflow:prs` | Create, list, review, and manage pull requests |
+| `/adoflow:pipelines` | Run, list, and monitor pipelines and builds |
 
-```bash
-git clone https://github.com/niketansrane/shanashma.git
-cd shanashma
-```
-
-**Windows (PowerShell):**
-
-```powershell
-.\install.ps1
-```
-
-**Linux/macOS:**
-
-```bash
-bash install.sh
-```
-
-## Usage
-
-Once installed, use the slash commands in Claude Code:
+## Examples
 
 ```
 /adoflow:workitems create a bug for login page crash
@@ -68,53 +38,11 @@ Once installed, use the slash commands in Claude Code:
 /adoflow:pipelines show build #567
 ```
 
-First-time setup will ask for your Azure DevOps organization and project names. Configuration is saved to `~/.config/ado-flow/config.json`.
+First-time setup will ask for your Azure DevOps organization and project. Configuration is saved to `~/.config/ado-flow/config.json`.
 
-## Security
+## Contributing
 
-Review plugin source code before installing. Plugins can execute commands on your system through Claude Code. Only install plugins from sources you trust.
-
-## Repo Structure
-
-```
-.claude-plugin/
-  marketplace.json             # Marketplace catalog
-.github/
-  workflows/
-    validate.yml               # CI: JSON validation
-  ISSUE_TEMPLATE/              # Bug report & feature request templates
-  PULL_REQUEST_TEMPLATE.md     # PR checklist
-plugins/
-  ado-flow/                    # Azure DevOps plugin
-    .claude-plugin/
-      plugin.json              # Plugin manifest
-    commands/
-      adoflow/
-        workitems.md           # /adoflow:workitems
-        prs.md                 # /adoflow:prs
-        pipelines.md           # /adoflow:pipelines
-    skills/
-      ado-flow/
-        SKILL.md               # Shared setup & configuration
-        references/
-        scripts/
-    README.md                  # Plugin documentation
-```
-
-## Adding Plugins
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for a step-by-step guide to adding a new plugin.
-
-## Naming Convention
-
-Plugins follow the `-flow` naming pattern:
-
-| Plugin | Purpose |
-|--------|---------|
-| `ado-flow` | Azure DevOps workflows |
-| `gh-flow` | GitHub workflows (planned) |
-| `docker-flow` | Docker workflows (planned) |
-| `slack-flow` | Slack workflows (planned) |
+See [CONTRIBUTING.md](CONTRIBUTING.md) to add a new plugin.
 
 ## License
 
