@@ -1,2 +1,5 @@
 # User-specific configuration (generated at runtime)
 .ado_config.json
+
+# Local Claude Code settings (user-specific permissions)
+.claude/settings.local.json

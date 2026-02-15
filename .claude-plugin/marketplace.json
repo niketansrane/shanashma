@@ -1,4 +1,5 @@
 {
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "shanashma",
   "owner": {
     "name": "Niketan Rane",
@@ -6,7 +7,7 @@
   },
   "metadata": {
     "description": "Sharpen the tools you use every day — a Claude Code plugin marketplace for developer productivity",
-    "tagline": "Sharpen the tools you use every day"
+    "version": "1.0.0"
   },
   "plugins": [
     {
@@ -16,10 +17,12 @@
       "author": {
         "name": "Niketan Rane",
         "email": "niketan.iiita@gmail.com",
-        "url": "http://github.com/niketansrane"
+        "url": "https://github.com/niketansrane"
       },
       "source": "./plugins/ado-flow",
       "category": "development",
+      "homepage": "https://github.com/niketansrane/shanashma/tree/main/plugins/ado-flow",
+      "repository": "https://github.com/niketansrane/shanashma",
       "keywords": [
         "ado",
         "prs",

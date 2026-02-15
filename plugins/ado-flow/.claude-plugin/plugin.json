@@ -5,8 +5,10 @@
   "author": {
     "name": "Niketan Rane",
     "email": "niketan.iiita@gmail.com",
-    "url": "http://github.com/niketansrane"
+    "url": "https://github.com/niketansrane"
   },
+  "homepage": "https://github.com/niketansrane/shanashma/tree/main/plugins/ado-flow",
+  "repository": "https://github.com/niketansrane/shanashma",
   "license": "MIT",
   "keywords": [
     "azure-devops",

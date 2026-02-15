@@ -17,7 +17,7 @@
 Add this repo as a marketplace in Claude Code:
 
 ```
-/plugin marketplace add niketansrane/shanashma
+/plugin marketplace add https://github.com/niketansrane/shanashma
 ```
 
 Then install a plugin:
@@ -26,9 +26,9 @@ Then install a plugin:
 /plugin install ado-flow@shanashma
 ```
 
-### Option 2: Install Script
+### Option 2: Manual Install (Offline)
 
-Clone the repo and run the install script:
+Clone the repo and run the install script to copy plugin files directly into `~/.claude/`:
 
 ```bash
 git clone https://github.com/niketansrane/shanashma.git
@@ -68,11 +68,20 @@ Once installed, use the slash commands in Claude Code:
 
 First-time setup will ask for your Azure DevOps organization and project names. Configuration is saved to `~/.config/ado-flow/config.json`.
 
+## Security
+
+Review plugin source code before installing. Plugins can execute commands on your system through Claude Code. Only install plugins from sources you trust.
+
 ## Repo Structure
 
 ```
 .claude-plugin/
   marketplace.json             # Marketplace catalog
+.github/
+  workflows/
+    validate.yml               # CI: JSON validation
+  ISSUE_TEMPLATE/              # Bug report & feature request templates
+  PULL_REQUEST_TEMPLATE.md     # PR checklist
 plugins/
   ado-flow/                    # Azure DevOps plugin
     .claude-plugin/
@@ -87,16 +96,12 @@ plugins/
         SKILL.md               # Shared setup & configuration
         references/
         scripts/
+    README.md                  # Plugin documentation
 ```
 
 ## Adding Plugins
 
-To add a new `-flow` plugin to the marketplace:
-
-1. Create a directory under `plugins/your-plugin-flow/`
-2. Add `.claude-plugin/plugin.json` manifest
-3. Add your `commands/`, `skills/`, `agents/` etc.
-4. Register it in `.claude-plugin/marketplace.json`
+See [CONTRIBUTING.md](CONTRIBUTING.md) for a step-by-step guide to adding a new plugin.
 
 ## Naming Convention
 
@@ -108,3 +113,7 @@ Plugins follow the `-flow` naming pattern:
 | `gh-flow` | GitHub workflows (planned) |
 | `docker-flow` | Docker workflows (planned) |
 | `slack-flow` | Slack workflows (planned) |
+
+## License
+
+[MIT](LICENSE)
