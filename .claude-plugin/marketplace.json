@@ -1,0 +1,34 @@
+{
+  "name": "shanashma",
+  "owner": {
+    "name": "Niketan Rane",
+    "email": "niketan.iiita@gmail.com"
+  },
+  "metadata": {
+    "description": "Sharpen the tools you use every day — a Claude Code plugin marketplace for developer productivity",
+    "tagline": "Sharpen the tools you use every day"
+  },
+  "plugins": [
+    {
+      "name": "ado-flow",
+      "description": "Manage Azure DevOps work items, pull requests, and pipelines using natural language",
+      "version": "1.0.0",
+      "author": {
+        "name": "Niketan Rane",
+        "email": "niketan.iiita@gmail.com",
+        "url": "http://github.com/niketansrane"
+      },
+      "source": "./plugins/ado-flow",
+      "category": "development",
+      "keywords": [
+        "ado",
+        "prs",
+        "azure-devops",
+        "work-items",
+        "pull-requests",
+        "pipelines",
+        "devops"
+      ]
+    }
+  ]
+}

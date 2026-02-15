@@ -1,0 +1,18 @@
+{
+  "name": "ado-flow",
+  "version": "1.0.0",
+  "description": "Manage Azure DevOps work items, pull requests, and pipelines using natural language. Provides /adoflow:workitems, /adoflow:prs, and /adoflow:pipelines slash commands.",
+  "author": {
+    "name": "Niketan Rane",
+    "email": "niketan.iiita@gmail.com",
+    "url": "http://github.com/niketansrane"
+  },
+  "license": "MIT",
+  "keywords": [
+    "azure-devops",
+    "work-items",
+    "pull-requests",
+    "pipelines",
+    "devops"
+  ]
+}
