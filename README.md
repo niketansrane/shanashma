@@ -8,6 +8,8 @@
 
 ## Install
 
+<video src="assets/installation.mp4" controls width="600"></video>
+
 Run these two commands **in order** inside Claude Code:
 
 **Step 1:** Add the marketplace
