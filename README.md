@@ -43,6 +43,12 @@ After installing, invoke the plugin explicitly using `/adoflow`:
 
 > **Tip:** You don't need to pick a specific command. Just use `/adoflow` and describe what you want — it will route to the right place automatically.
 
+### How it looks
+
+<p align="center">
+  <img src="assets/ado-flow-screenshot.png" alt="ado-flow commands in Claude Code" width="800">
+</p>
+
 ## Examples
 
 ```bash
