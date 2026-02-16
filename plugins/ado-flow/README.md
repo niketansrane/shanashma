@@ -83,7 +83,7 @@ Configuration is stored at `~/.config/ado-flow/config.json`:
 }
 ```
 
-To reconfigure, delete the file and run any `/adoflow:*` command.
+To reconfigure, delete the file and run any `/adoflow` command.
 
 ## Known Limitations
 
