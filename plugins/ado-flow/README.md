@@ -13,9 +13,9 @@ Manage Azure DevOps work items, pull requests, and pipelines using natural langu
 | Command | Description |
 |---------|-------------|
 | `/adoflow` | Smart entry point — describe what you need and it routes automatically |
-| `/workitems` | Create, list, query, update, and manage work items |
-| `/prs` | Create, list, review, vote on, and manage pull requests |
-| `/pipelines` | Run, list, monitor, and manage pipelines and builds |
+| `/adoflow:workitems` | Create, list, query, update, and manage work items |
+| `/adoflow:prs` | Create, list, review, vote on, and manage pull requests |
+| `/adoflow:pipelines` | Run, list, monitor, and manage pipelines and builds |
 
 > **Tip:** If you don't know which command to use, just type `/adoflow` followed by what you want. It will figure out the rest.
 
@@ -30,9 +30,9 @@ Manage Azure DevOps work items, pull requests, and pipelines using natural langu
 Or use the specific commands directly:
 
 ```
-/workitems create a bug for login page crash
-/prs list my PRs
-/pipelines run Build-CI on main
+/adoflow:workitems create a bug for login page crash
+/adoflow:prs list my PRs
+/adoflow:pipelines run Build-CI on main
 ```
 
 On first use, you'll be prompted for your Azure DevOps organization and project names. Configuration is saved to `~/.config/ado-flow/config.json` and reused automatically.
@@ -40,10 +40,10 @@ On first use, you'll be prompted for your Azure DevOps organization and project 
 ## Work Items Examples
 
 ```
-/workitems create a task for implementing dark mode
-/workitems list my items
-/workitems show #1234
-/workitems update #1234 state to Active
+/adoflow:workitems create a task for implementing dark mode
+/adoflow:workitems list my items
+/adoflow:workitems show #1234
+/adoflow:workitems update #1234 state to Active
 ```
 
 Supports all work item types available in your project (Bug, Task, User Story, Feature, Epic, etc.). Area path and iteration path are detected automatically from your recent work.
@@ -51,12 +51,12 @@ Supports all work item types available in your project (Bug, Task, User Story, F
 ## Pull Requests Examples
 
 ```
-/prs create a PR
-/prs list my PRs
-/prs show PR #42
-/prs show comments on PR #42
-/prs approve PR #42
-/prs add reviewer user@example.com to PR #42
+/adoflow:prs create a PR
+/adoflow:prs list my PRs
+/adoflow:prs show PR #42
+/adoflow:prs show comments on PR #42
+/adoflow:prs approve PR #42
+/adoflow:prs add reviewer user@example.com to PR #42
 ```
 
 Source branch defaults to your current git branch. Target branch defaults to `main`.
@@ -64,11 +64,11 @@ Source branch defaults to your current git branch. Target branch defaults to `ma
 ## Pipelines Examples
 
 ```
-/pipelines list pipelines
-/pipelines run Build-CI on main
-/pipelines show build #567
-/pipelines cancel build #567
-/pipelines show runs for Build-CI
+/adoflow:pipelines list pipelines
+/adoflow:pipelines run Build-CI on main
+/adoflow:pipelines show build #567
+/adoflow:pipelines cancel build #567
+/adoflow:pipelines show runs for Build-CI
 ```
 
 ## Configuration
