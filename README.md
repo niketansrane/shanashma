@@ -8,7 +8,7 @@
 
 ## Install
 
-<video src="assets/installation.mp4" controls width="600"></video>
+https://github.com/niketansrane/shanashma/releases/download/assets/installation.mp4
 
 Run these two commands **in order** inside Claude Code:
 
