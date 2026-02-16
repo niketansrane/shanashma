@@ -79,28 +79,28 @@ If no config exists, follow the `ado-flow` skill to run first-time setup.
 
 ## Work Items Workflow
 
-Once classified as a work item request, follow the full instructions in the `adoflow:workitems` command to handle the request.
+Once classified as a work item request, follow the full instructions in the `workitems` command to handle the request.
 
 Use `{ORG}` and `{WORK_ITEM_PROJECT}` from the loaded config.
 
-Refer to the `adoflow:workitems` command for all work item workflows: create, list, get details, update, delete, query, and manage relations.
+Refer to the `workitems` command for all work item workflows: create, list, get details, update, delete, query, and manage relations.
 
 ---
 
 ## Pull Requests Workflow
 
-Once classified as a pull request request, follow the full instructions in the `adoflow:prs` command to handle the request.
+Once classified as a pull request request, follow the full instructions in the `prs` command to handle the request.
 
 Use `{ORG}` and `{PR_PROJECT}` from the loaded config.
 
-Refer to the `adoflow:prs` command for all PR workflows: create, list, get details, vote, show comments, manage reviewers, link work items, update, check policies, and checkout.
+Refer to the `prs` command for all PR workflows: create, list, get details, vote, show comments, manage reviewers, link work items, update, check policies, and checkout.
 
 ---
 
 ## Pipelines Workflow
 
-Once classified as a pipeline request, follow the full instructions in the `adoflow:pipelines` command to handle the request.
+Once classified as a pipeline request, follow the full instructions in the `pipelines` command to handle the request.
 
 Use `{ORG}` and `{WORK_ITEM_PROJECT}` (as the default project) from the loaded config.
 
-Refer to the `adoflow:pipelines` command for all pipeline workflows: list, run, show details, list builds, show build details, cancel, list runs, show run details, list artifacts, download artifacts, manage tags, and list variables.
+Refer to the `pipelines` command for all pipeline workflows: list, run, show details, list builds, show build details, cancel, list runs, show run details, list artifacts, download artifacts, manage tags, and list variables.
