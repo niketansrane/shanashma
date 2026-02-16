@@ -12,11 +12,22 @@ Manage Azure DevOps work items, pull requests, and pipelines using natural langu
 
 | Command | Description |
 |---------|-------------|
+| `/adoflow` | Smart entry point — describe what you need and it routes automatically |
 | `/adoflow:workitems` | Create, list, query, update, and manage work items |
 | `/adoflow:prs` | Create, list, review, vote on, and manage pull requests |
 | `/adoflow:pipelines` | Run, list, monitor, and manage pipelines and builds |
 
+> **Tip:** If you don't know which command to use, just type `/adoflow` followed by what you want. It will figure out the rest.
+
 ## Quick Start
+
+```
+/adoflow create a bug for login page crash
+/adoflow list my PRs
+/adoflow run Build-CI on main
+```
+
+Or use the specific commands directly:
 
 ```
 /adoflow:workitems create a bug for login page crash

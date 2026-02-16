@@ -8,6 +8,8 @@
 
 ## Install
 
+Run these two commands **in order** inside Claude Code:
+
 **Step 1:** Add the marketplace
 
 ```bash
@@ -20,15 +22,37 @@
 /plugin install ado-flow@shanashma
 ```
 
+> **Note:** Both steps are required. Step 1 registers the marketplace, Step 2 installs the plugin from it. Run them sequentially — Step 2 will fail if Step 1 hasn't completed.
+
+## Usage
+
+After installing, invoke the plugin explicitly using `/adoflow`:
+
+```bash
+/adoflow create a bug for login page crash
+```
+
 ## What You Get
 
 | Command | What it does |
 |---------|-------------|
+| `/adoflow` | Smart entry point — just describe what you need |
 | `/adoflow:workitems` | Create, list, query, and update work items |
 | `/adoflow:prs` | Create, list, review, and manage pull requests |
 | `/adoflow:pipelines` | Run, list, and monitor pipelines and builds |
 
+> **Tip:** You don't need to pick a specific command. Just use `/adoflow` and describe what you want — it will route to the right place automatically.
+
 ## Examples
+
+```bash
+/adoflow create a bug for login page crash
+/adoflow list my PRs
+/adoflow run Build-CI on main
+/adoflow show #1234
+```
+
+Or use the specific commands if you prefer:
 
 ```bash
 /adoflow:workitems create a bug for login page crash
