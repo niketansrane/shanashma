@@ -10,7 +10,7 @@ This is the unified entry point for all Azure DevOps operations. Analyze the use
 
 ## Arguments
 
-<user_request> #$ARGUMENTS </user_request>
+<user_request> $ARGUMENTS </user_request>
 
 **If the request above is empty, ask the user:** "What would you like to do in Azure DevOps? Here are some examples:
 

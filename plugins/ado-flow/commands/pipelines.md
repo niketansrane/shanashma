@@ -10,7 +10,7 @@ Manage pipelines and builds in Azure DevOps: list, run, monitor, cancel, and vie
 
 ## Arguments
 
-<user_request> #$ARGUMENTS </user_request>
+<user_request> $ARGUMENTS </user_request>
 
 **If the request above is empty, ask the user:** "What would you like to do with pipelines? For example: list pipelines, run a pipeline, check a build status, or view recent runs."
 
