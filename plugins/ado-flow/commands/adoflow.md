@@ -16,7 +16,8 @@ This is the unified entry point for all Azure DevOps operations. Analyze the use
 
 - **Work items:** create a bug, list my items, show #1234, update a task
 - **Pull requests:** create a PR, list my PRs, approve PR #42, show comments
-- **Pipelines:** list pipelines, run Build-CI, show build #567, cancel a build"
+- **Pipelines:** list pipelines, run Build-CI, show build #567, cancel a build
+- **Sprint update:** show my sprint updates, sprint progress report"
 
 Do not proceed until you have a clear request from the user.
 
@@ -50,6 +51,14 @@ Route to the **Pipelines** workflow if the request mentions any of these:
 - **Build status**, **build logs**, or **build artifacts**
 - **Triggering**, **cancelling**, or **queuing** builds
 - Pipeline **variables**, **runs**, or **tags**
+
+### Sprint Update
+
+Route to the **Sprint Update** workflow if the request mentions any of these:
+- **Sprint update**, **sprint status**, **sprint progress**, or **sprint report**
+- Checking **what's been done** in the current sprint
+- Cross-referencing **work items** with **merged PRs**
+- Asking for a **status update** or **progress summary** on sprint items
 
 ### Ambiguous Requests
 
@@ -104,3 +113,13 @@ Once classified as a pipeline request, follow the full instructions in the `adof
 Use `{ORG}` and `{WORK_ITEM_PROJECT}` (as the default project) from the loaded config.
 
 Refer to the `adoflow:pipelines` command for all pipeline workflows: list, run, show details, list builds, show build details, cancel, list runs, show run details, list artifacts, download artifacts, manage tags, and list variables.
+
+---
+
+## Sprint Update Workflow
+
+Once classified as a sprint update request, follow the full instructions in the `adoflow:sprint-update` command to handle the request.
+
+Use `{ORG}`, `{WORK_ITEM_PROJECT}`, and `{PR_PROJECT}` from the loaded config.
+
+Refer to the `adoflow:sprint-update` command for the full workflow: detect current sprint, fetch active work items, cross-reference with merged PRs, walk through each item to suggest state changes, add progress comments, flag blockers, and link orphaned PRs.
