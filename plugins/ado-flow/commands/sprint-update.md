@@ -1,30 +1,38 @@
 ---
 name: adoflow:sprint-update
-description: Update sprint work items by cross-referencing merged PRs, suggesting state changes, adding progress comments, and flagging blockers
-argument-hint: "[update my sprint items | sprint standup | sync my work items with PRs]"
+description: Auto-classify sprint work items using merged/open PRs, bulk-confirm updates, flag blockers, move items to next sprint, and generate a copy-paste standup summary
+argument-hint: "[update my sprint items | quick sprint update | sprint standup | move #1234 to next sprint]"
 ---
 
 # Azure DevOps Sprint Update
 
-Help developers keep their sprint board accurate with minimal effort. This command cross-references active work items with merged PRs, then walks through each item to update its state, add a progress comment, or flag blockers — so the board reflects reality and developers can focus on what matters.
+Keep your sprint board accurate in under a minute. This command auto-classifies your work items based on PR activity, lets you bulk-confirm the obvious ones, walks you through only the ambiguous items, and generates a copy-paste standup summary at the end.
+
+> **Design note:** Unlike other adoflow commands, sprint-update proceeds with the full workflow by default without prompting. This is intentional — the command is designed for the daily standup use case where the intent is always "update everything."
 
 ## Arguments
 
 <user_request> #$ARGUMENTS </user_request>
 
-**If the request above is empty, proceed with the default workflow:** walk through each active sprint work item and help the developer update it.
+**If the request above is empty, proceed with the default workflow:** auto-classify and update all active sprint work items.
 
 ## Prerequisites
 
 Before doing anything, load the shared configuration by following the setup instructions in the `ado-flow` skill's "First-Time Setup" section.
-
-Load the config:
 
 ```bash
 cat ~/.config/ado-flow/config.json 2>/dev/null
 ```
 
 If no config exists, follow the `ado-flow` skill to run first-time setup. Once config is loaded, you will have: `{ORG}`, `{WORK_ITEM_PROJECT}`, `{PR_PROJECT}`.
+
+Also resolve the user's email for PR queries (since `@me` may not resolve in cross-project contexts):
+
+```bash
+az account show --query "user.name" -o tsv
+```
+
+Store this as `{USER_EMAIL}`.
 
 ---
 
@@ -50,27 +58,57 @@ If no clear iteration is found, ask the user:
 
 ---
 
-### Step 2: Fetch Active Work Items in the Current Sprint
+### Step 2: Detect Process Template States
 
-Query all active (non-closed, non-removed) work items assigned to the user in the current sprint:
+Before suggesting any state transitions, detect the valid states for work items in this project. Fetch the state model:
+
+```bash
+az boards work-item type state list \
+  --org "https://dev.azure.com/{ORG}" \
+  --project "{WORK_ITEM_PROJECT}" \
+  --type "Task" \
+  -o json
+```
+
+From the results, build a state mapping for this session:
+
+| Intent | Agile | Scrum | CMMI | Basic |
+|--------|-------|-------|------|-------|
+| Not started | New | New | Proposed | To Do |
+| In progress | Active | Committed | Active | Doing |
+| Done | Resolved | Done | Resolved | Done |
+| Closed | Closed | Done | Closed | Done |
+| Removed | Removed | Removed | Closed | Done |
+
+Store the detected state names as variables used throughout Step 5:
+- `{STATE_NOT_STARTED}` — the "new/proposed/to do" state
+- `{STATE_IN_PROGRESS}` — the "active/committed/doing" state
+- `{STATE_DONE}` — the terminal "resolved/done" state
+- `{STATE_REMOVED}` — the "removed/closed" state for unwanted items
+
+**Always use these detected variables instead of hardcoded state names.**
+
+---
+
+### Step 3: Fetch Active Work Items in the Current Sprint
+
+Query all work items assigned to the user in the current sprint that are not yet done:
 
 ```bash
 az boards query \
   --org "https://dev.azure.com/{ORG}" \
   --project "{WORK_ITEM_PROJECT}" \
-  --wiql "SELECT [System.Id], [System.Title], [System.State], [System.WorkItemType], [System.IterationPath] FROM workitems WHERE [System.AssignedTo] = @me AND [System.IterationPath] = '{CURRENT_ITERATION}' AND [System.State] <> 'Closed' AND [System.State] <> 'Removed' ORDER BY [System.WorkItemType] ASC, [System.State] ASC" \
+  --wiql "SELECT [System.Id], [System.Title], [System.State], [System.WorkItemType], [System.IterationPath], [System.Tags], [System.CreatedDate], [System.ChangedDate] FROM workitems WHERE [System.AssignedTo] = @me AND [System.IterationPath] = '{CURRENT_ITERATION}' AND [System.State] NOT IN ('Closed', 'Removed', 'Resolved', 'Done') ORDER BY [System.WorkItemType] ASC, [System.State] ASC" \
   -o json
 ```
 
-Present a quick overview:
-
-> Found **{N} active work items** in **{CURRENT_ITERATION}**. Let me check your merged PRs and then we'll walk through each one.
+**Note:** The `NOT IN` clause excludes items that are already resolved/done/closed/removed, so the command only processes items that still need attention.
 
 ---
 
-### Step 3: Fetch Merged PRs and Build the Cross-Reference
+### Step 4: Fetch PRs and Build the Cross-Reference
 
-Fetch recently completed (merged) PRs created by the user from the PR project:
+#### 4a: Fetch Merged PRs
 
 ```bash
 az repos pr list \
@@ -78,11 +116,11 @@ az repos pr list \
   --project "{PR_PROJECT}" \
   --creator "{USER_EMAIL}" \
   --status completed \
-  --top 50 \
+  --top 100 \
   -o json
 ```
 
-**Note:** If `@me` does not resolve in the PR project, use the user's email from `az account show --query "user.name" -o tsv`.
+If exactly 100 results are returned, warn: "I fetched the maximum number of recent PRs. Some older ones may be missing."
 
 For each merged PR, fetch its linked work items:
 
@@ -93,90 +131,149 @@ az repos pr work-item list \
   -o json
 ```
 
-Build a mapping of **work item ID → list of merged PRs** (with PR title, repo, date).
+Build a mapping: **work item ID → list of merged PRs** (with PR title, repo, date).
+
+#### 4b: Fetch Active (Open) PRs
+
+```bash
+az repos pr list \
+  --org "https://dev.azure.com/{ORG}" \
+  --project "{PR_PROJECT}" \
+  --creator "{USER_EMAIL}" \
+  --status active \
+  --top 50 \
+  -o json
+```
+
+For each active PR, fetch its linked work items and reviewer votes:
+
+```bash
+az repos pr work-item list \
+  --org "https://dev.azure.com/{ORG}" \
+  --id {PR_ID} \
+  -o json
+```
+
+```bash
+az repos pr reviewer list \
+  --org "https://dev.azure.com/{ORG}" \
+  --id {PR_ID} \
+  -o json
+```
+
+Build a second mapping: **work item ID → list of open PRs** (with PR title, repo, draft status, reviewer votes).
+
+Classify each open PR's review status:
+- **Awaiting review** — no votes yet
+- **Approved** — all required reviewers approved
+- **Changes requested** — at least one `wait-for-author` or `reject` vote
+
+#### 4c: Handle Cross-Project PRs
+
+If `{WORK_ITEM_PROJECT}` and `{PR_PROJECT}` are different, the above queries already handle it — work items are from one project, PRs from another, and the link is resolved via PR-linked work items.
+
+If the user mentions PRs in a third project, query that project additionally and merge results.
 
 ---
 
-### Step 4: Walk Through Each Work Item — Suggest and Apply Updates
+### Step 5: Auto-Classify and Present the Plan
 
-This is the core of the command. Go through each active work item **one by one** and take action based on its PR activity.
+This is the core of the command. **Do not walk through items one-by-one by default.** Instead, auto-classify every item using the data collected, then present a single plan for bulk confirmation.
 
-#### Category A: Work Items with Merged PRs
+#### Classification Rules
 
-For each work item that has linked merged PRs, present the evidence and suggest a state transition:
+For each active work item, classify it automatically:
 
-> **#{ID} - {TITLE}** (currently: {STATE})
-> Merged PRs:
-> - PR #{PR_ID}: "{PR_TITLE}" → `{TARGET_BRANCH}` in `{REPO}` ({DATE})
+| Condition | Classification | Suggested Action |
+|-----------|---------------|------------------|
+| Has merged PR(s) linked | **RESOLVE** | Move to `{STATE_DONE}` + add PR summary comment |
+| Has open PR awaiting review | **PR IN REVIEW** | Add "PR under review" comment |
+| Has open PR with changes requested | **NEEDS ATTENTION** | Flag for manual review |
+| State is `{STATE_IN_PROGRESS}` + no PRs + changed < 14 days ago | **IN PROGRESS** | No change needed |
+| State is `{STATE_IN_PROGRESS}` + no PRs + changed > 14 days ago | **STALE** | Flag for discussion |
+| State is `{STATE_NOT_STARTED}` + no PRs | **NOT STARTED** | No change needed |
+| Title contains `[Placeholder]` | **PLACEHOLDER** | Suggest removal or clarification |
+| Item created before current sprint started + still `{STATE_NOT_STARTED}` | **CARRYOVER** | Suggest move to next sprint or backlog |
+
+**Also detect duplicates:** If two or more items share the same title or the same linked PR, flag them as a group.
+
+#### Present the Auto-Classification
+
+> Auto-classified **{AUTO_COUNT}** of **{TOTAL_COUNT}** items:
 >
-> **Suggested action:** Move to **Resolved** and add a progress comment summarizing the PR work.
-> Should I: (1) Update state to Resolved + add comment, (2) Just add a comment (keep current state), (3) Skip this item, or (4) Something else?
-
-**When the user confirms an update:**
-
-To update the state:
-
-```bash
-az boards work-item update \
-  --org "https://dev.azure.com/{ORG}" \
-  --id {ID} \
-  --state "{NEW_STATE}" \
-  -o json
-```
-
-To add a progress comment summarizing the merged PRs:
-
-```bash
-az boards work-item update \
-  --org "https://dev.azure.com/{ORG}" \
-  --id {ID} \
-  --discussion "Sprint update: {N} PR(s) merged.<br>- PR #{PR_ID}: {PR_TITLE} (merged {DATE} into {TARGET_BRANCH} in {REPO})<br>Work is complete / in progress." \
-  -o json
-```
-
-**State transition guidance:**
-- If **all work is done** (user confirms) → suggest **Resolved** or **Closed**
-- If **some PRs merged but more work remains** → suggest keeping **Active** and adding a progress comment
-- If the item is still **Proposed/New** but has PRs → suggest moving to **Active** first, then discuss resolution
-
-#### Category B: Work Items with No Merged PRs
-
-For items with no linked PRs, ask about the current situation:
-
-> **#{ID} - {TITLE}** (currently: {STATE})
-> No merged PRs found for this item.
+> **RESOLVE** ({N}) — merged PR found
+> &nbsp;&nbsp;#{ID1} {TITLE} — PR #{PR_ID} merged {DATE}
+> &nbsp;&nbsp;#{ID2} {TITLE} — PR #{PR_ID} merged {DATE}
 >
-> What's the status?
-> (1) Work in progress — I'll add a status comment
-> (2) Blocked — I'll add a blocker comment and you can tell me what's blocking it
-> (3) Not started yet — skip for now
-> (4) No longer needed — move to Removed/Closed
+> **PR IN REVIEW** ({N}) — open PR, awaiting merge
+> &nbsp;&nbsp;#{ID3} {TITLE} — PR #{PR_ID} ({REVIEW_STATUS})
+>
+> **IN PROGRESS** ({N}) — Active, no PRs
+> &nbsp;&nbsp;#{ID4} {TITLE}
+>
+> **NOT STARTED** ({N}) — Proposed, no activity
+> &nbsp;&nbsp;#{ID5} {TITLE}
+>
+> Apply auto-classifications? (yes / no / edit by number)
 
-**When the user says "blocked":**
+**When the user confirms "yes" or "apply all":**
 
-Ask: "What's blocking this?" Then add a comment:
+Execute all auto-classified actions in sequence:
 
-```bash
-az boards work-item update \
-  --org "https://dev.azure.com/{ORG}" \
-  --id {ID} \
-  --discussion "Sprint update: BLOCKED — {BLOCKER_DESCRIPTION}" \
-  -o json
-```
-
-Also add the `Blocked` tag if the project supports it:
+For RESOLVE items — update state + add comment:
 
 ```bash
 az boards work-item update \
   --org "https://dev.azure.com/{ORG}" \
   --id {ID} \
-  --fields "System.Tags=Blocked" \
+  --state "{STATE_DONE}" \
+  --discussion "Sprint update: {N} PR(s) merged.<br>- PR #{PR_ID}: {PR_TITLE} (merged {DATE} into {TARGET_BRANCH} in {REPO})" \
   -o json
 ```
 
-**When the user says "in progress":**
+For PR IN REVIEW items — add a comment:
 
-Ask: "Any quick note on where things stand?" Then add a comment:
+```bash
+az boards work-item update \
+  --org "https://dev.azure.com/{ORG}" \
+  --id {ID} \
+  --discussion "Sprint update: PR #{PR_ID} is open and under review ({REVIEW_STATUS})." \
+  -o json
+```
+
+For IN PROGRESS and NOT STARTED items — no action taken (they are already in the correct state).
+
+**When the user says "edit" or selects specific numbers:**
+
+Present each selected item individually for override (see Step 5b).
+
+---
+
+#### Step 5b: Walk Through Items Needing Input
+
+After bulk-applying the auto-classifications, walk through only the items that need human input: STALE, NEEDS ATTENTION, PLACEHOLDER, CARRYOVER, and any the user asked to edit.
+
+For each item, use a consistent single-letter action menu:
+
+> **#{ID} - {TITLE}** ({STATE}, {TYPE})
+> {CONTEXT: e.g., "No PRs, no activity for 21 days" or "Open PR has changes requested by Jane Smith"}
+>
+> **[r]**esolve &nbsp; **[p]**rogress comment &nbsp; **[n]**ext sprint &nbsp; **[b]**locked &nbsp; **[x]** remove &nbsp; **[s]**kip
+
+**Actions:**
+
+**[r] Resolve** — move to `{STATE_DONE}` + add comment:
+
+```bash
+az boards work-item update \
+  --org "https://dev.azure.com/{ORG}" \
+  --id {ID} \
+  --state "{STATE_DONE}" \
+  --discussion "Sprint update: Work complete." \
+  -o json
+```
+
+**[p] Progress comment** — ask "Quick note on where things stand?" then:
 
 ```bash
 az boards work-item update \
@@ -186,42 +283,94 @@ az boards work-item update \
   -o json
 ```
 
-If the item is in **Proposed/New** state, suggest moving it to **Active**:
+If item is in `{STATE_NOT_STARTED}`, also move to `{STATE_IN_PROGRESS}`:
 
 ```bash
 az boards work-item update \
   --org "https://dev.azure.com/{ORG}" \
   --id {ID} \
-  --state "Active" \
+  --state "{STATE_IN_PROGRESS}" \
   -o json
 ```
 
-**When the user says "not needed":**
+**[n] Next sprint** — detect the next iteration and move the item there:
 
-Confirm first, then close:
+```bash
+az boards iteration project list \
+  --org "https://dev.azure.com/{ORG}" \
+  --project "{WORK_ITEM_PROJECT}" \
+  --depth 4 \
+  -o json
+```
+
+Find the iteration path that comes after `{CURRENT_ITERATION}` chronologically. Confirm:
+
+> "Moving #{ID} to `{NEXT_ITERATION}`. Correct?"
 
 ```bash
 az boards work-item update \
   --org "https://dev.azure.com/{ORG}" \
   --id {ID} \
-  --state "Removed" \
+  --iteration "{NEXT_ITERATION}" \
+  --discussion "Sprint update: Moved to {NEXT_ITERATION} — not completed this sprint." \
+  -o json
+```
+
+**[b] Blocked** — ask "What's blocking this?" then add comment and append tag:
+
+First fetch existing tags to avoid overwriting:
+
+```bash
+az boards work-item show \
+  --org "https://dev.azure.com/{ORG}" \
+  --id {ID} \
+  --fields "System.Tags" \
+  --query "fields.\"System.Tags\"" \
+  -o tsv
+```
+
+Then append `Blocked` to existing tags:
+
+```bash
+az boards work-item update \
+  --org "https://dev.azure.com/{ORG}" \
+  --id {ID} \
+  --fields "System.Tags={EXISTING_TAGS}; Blocked" \
+  --discussion "Sprint update: BLOCKED — {BLOCKER_DESCRIPTION}" \
+  -o json
+```
+
+**[x] Remove** — confirm first, then:
+
+```bash
+az boards work-item update \
+  --org "https://dev.azure.com/{ORG}" \
+  --id {ID} \
+  --state "{STATE_REMOVED}" \
   --discussion "Sprint update: Removed — no longer needed." \
   -o json
 ```
 
+**[s] Skip** — move on immediately, no follow-up.
+
 ---
 
-### Step 5: Handle Unlinked Merged PRs
+### Step 6: Handle Unlinked PRs
 
-After walking through all work items, check if any merged PRs were **not linked to any active sprint work item**. If so, offer to link them:
+After all work item updates, check if any merged or open PRs were not linked to any active sprint work item.
 
-> I also found **{W} merged PRs** that aren't linked to any work item in this sprint:
+For unlinked PRs, attempt a title-similarity match against sprint work items and show confidence:
+
+> **Unlinked PRs** ({W}):
 > 1. PR #{PR_ID}: "{PR_TITLE}" in `{REPO}` — merged {DATE}
-> 2. PR #{PR_ID}: "{PR_TITLE}" in `{REPO}` — merged {DATE}
+>    Likely match: #{WI_ID} "{WI_TITLE}" (high confidence based on title similarity)
+>    Link to #{WI_ID}? (y / n / other ID)
 >
-> Would you like to link any of these to a sprint work item? (e.g., "link 1 to #5678")
+> 2. PR #{PR_ID}: "{PR_TITLE}" in `{REPO}` — merged {DATE}
+>    No strong match found.
+>    Link to a work item? (enter ID or skip)
 
-To link a PR to a work item:
+To link:
 
 ```bash
 az repos pr work-item add \
@@ -233,55 +382,56 @@ az repos pr work-item add \
 
 ---
 
-### Step 6: Final Summary
+### Step 7: Final Summary and Standup
 
-After all updates, present a summary of what was done:
+After all updates, present two things: the action log and the standup summary.
+
+#### Action Log
 
 > ## Sprint Update Complete
 >
 > **Actions taken:**
-> - Resolved: #{ID1}, #{ID2} (with progress comments)
-> - Commented: #{ID3}, #{ID4} (status updates added)
-> - Blocked: #{ID5} (blocker flagged)
-> - Skipped: #{ID6}, #{ID7}
-> - Removed: #{ID8}
-> - Linked: PR #{PR_ID} → #{WORK_ITEM_ID}
+> - Resolved: #{ID1}, #{ID2} (with PR summary comments)
+> - PR in review: #{ID3} (comment added)
+> - Progress comment: #{ID4}
+> - Blocked: #{ID5} (tagged + comment)
+> - Moved to next sprint: #{ID6} → {NEXT_ITERATION}
+> - Removed: #{ID7}
+> - Linked: PR #{PR_ID} → #{WI_ID}
+> - Skipped: #{ID8}, #{ID9}
+
+#### Standup Summary
+
+Generate a copy-paste standup message based on everything learned during the update:
+
+> ## Your Standup (copy/paste ready)
 >
-> Your sprint board is now up to date.
-
----
-
-## Handling Cross-Project PRs
-
-If `{WORK_ITEM_PROJECT}` and `{PR_PROJECT}` are different in the config, the command automatically handles this:
-- Work items are queried from `{WORK_ITEM_PROJECT}`
-- PRs are queried from `{PR_PROJECT}`
-- The link between them is resolved via the PR's linked work items (which can reference work items in any project within the organization)
-
-If the user mentions PRs are in a third project not in the config, ask:
-
-> "Which project are those PRs in? I'll check there too."
-
-Then query that project additionally:
-
-```bash
-az repos pr list \
-  --org "https://dev.azure.com/{ORG}" \
-  --project "{OTHER_PROJECT}" \
-  --creator "{USER_EMAIL}" \
-  --status completed \
-  --top 50 \
-  -o json
-```
+> **Yesterday:**
+> {List items that were resolved — summarize merged PRs in plain language}
+> e.g., "Merged OpenTelemetry trace propagation fix (PR #1474128) and App Insights integration (PR #1468981)."
+>
+> **Today:**
+> {List items that are in progress or have open PRs}
+> e.g., "Continuing TMP Migration to Ownership Enforcer. PR #1462531 (SLA boundary fix) is under review."
+>
+> **Blocked:**
+> {List items flagged as blocked, with the blocker description}
+> e.g., "Nothing flagged." or "#5134465 blocked on infrastructure team response."
+>
+> **PRs awaiting review:**
+> {List open PRs with their review status}
+> e.g., "PR #1462531 (draft, Skynet), PR #1462304 (draft, Skynet)."
 
 ---
 
 ## Communication Style
 
-- Walk through items **one at a time** so the developer is never overwhelmed
-- Always **suggest** an action but let the developer decide — never auto-update without confirmation
-- Keep the conversation quick — most items should take one or two exchanges
-- Use plain language: "Should I mark this as done?" not "Shall I transition the state to Resolved?"
-- After each update, confirm briefly: "Done — #{ID} is now Resolved with a progress comment."
-- If the developer says "skip" or "next", move on immediately without follow-up questions
-- At the end, show what was actually changed so the developer has a clear record
+In addition to the communication guidelines in the `ado-flow` shared skill, sprint-update follows these specific interaction patterns:
+
+- **Auto-classify first, ask questions second.** The developer should confirm a plan, not construct one from scratch.
+- **Bulk confirmation is the default.** Only surface items individually when they genuinely need human judgment.
+- Use consistent single-letter shortcuts: **[r]** resolve, **[p]** progress, **[n]** next sprint, **[b]** blocked, **[x]** remove, **[s]** skip.
+- After each update, confirm briefly: "Done — #{ID} moved to Resolved."
+- If the developer says "skip" or "s", move on immediately — no follow-up.
+- **The standup summary is the deliverable.** The ADO updates are the means; the standup text is what makes developers come back daily.
+- Keep the entire flow under 2 minutes for a typical sprint of 10-20 items.

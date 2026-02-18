@@ -16,7 +16,7 @@ Manage Azure DevOps work items, pull requests, and pipelines using natural langu
 | `/adoflow:workitems` | Create, list, query, update, and manage work items |
 | `/adoflow:prs` | Create, list, review, vote on, and manage pull requests |
 | `/adoflow:pipelines` | Run, list, monitor, and manage pipelines and builds |
-| `/adoflow:sprint-update` | Walk through sprint work items, suggest state changes based on merged PRs, add progress comments, and flag blockers |
+| `/adoflow:sprint-update` | Auto-classify sprint items via PR activity, bulk-confirm updates, flag blockers, and generate a standup summary |
 
 > **Tip:** If you don't know which command to use, just type `/adoflow` followed by what you want. It will figure out the rest.
 
@@ -78,18 +78,21 @@ Source branch defaults to your current git branch. Target branch defaults to `ma
 
 ```
 /adoflow:sprint-update
-/adoflow:sprint-update update my sprint items
+/adoflow:sprint-update quick sprint update
 /adoflow:sprint-update sprint standup
 ```
 
-Walks through each of your active sprint work items one by one:
-- **Items with merged PRs** — suggests moving to Resolved, adds a progress comment summarizing the PRs
-- **Items without PRs** — asks if it's in progress, blocked, not started, or no longer needed
-- **Blocked items** — adds a blocker comment and tags the item
-- **Unlinked PRs** — offers to link orphaned merged PRs to sprint work items
-- **Final summary** — shows exactly what was updated so you have a clear record
+Auto-classifies your sprint items and presents a plan you confirm in one step:
 
-Works across projects — your work items and PRs don't need to be in the same ADO project.
+1. **Auto-classifies** every item — RESOLVE (has merged PR), PR IN REVIEW (open PR), IN PROGRESS, NOT STARTED, STALE (no activity 14+ days)
+2. **Bulk confirm** — apply all auto-classifications with one "yes", or edit specific items
+3. **Walks through only ambiguous items** — stale items, items needing attention, carryover candidates
+4. **Move to next sprint** — first-class action for items that won't finish this sprint
+5. **Flag blockers** — adds comment + appends `Blocked` tag (preserves existing tags)
+6. **Link unlinked PRs** — suggests matches based on title similarity
+7. **Standup summary** — generates copy-paste "Yesterday / Today / Blocked" text
+
+Works across projects — your work items and PRs don't need to be in the same ADO project. Detects your process template (Agile/Scrum/CMMI) and uses the correct state names.
 
 ## Configuration
 
