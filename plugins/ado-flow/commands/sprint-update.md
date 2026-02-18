@@ -10,7 +10,7 @@ Keep your sprint board accurate in under a minute. Auto-classifies work items by
 
 ## Arguments
 
-<user_request> #$ARGUMENTS </user_request>
+<user_request> $ARGUMENTS </user_request>
 
 **If the request above is empty, proceed with the default workflow:** auto-classify and update all active sprint work items.
 
