@@ -8,8 +8,6 @@ argument-hint: "[update my sprint items | quick sprint update | sprint standup |
 
 Keep your sprint board accurate in under a minute. Auto-classifies work items by PR activity, bulk-confirms the obvious ones, walks through only ambiguous items, and generates a standup summary.
 
-> **Design note:** Sprint-update proceeds with the full workflow by default without prompting. This is intentional — the daily standup use case means the intent is always "update everything."
-
 ## Arguments
 
 <user_request> #$ARGUMENTS </user_request>
@@ -26,21 +24,23 @@ cat ~/.config/ado-flow/config.json 2>/dev/null
 
 If no config exists, follow the `ado-flow` skill to run first-time setup. Once config is loaded, you will have: `{ORG}`, `{WORK_ITEM_PROJECT}`, `{PR_PROJECT}`.
 
-Resolve the user's identity for queries:
+Resolve the user's identity:
 
 ```bash
 az account show --query "user.name" -o tsv
 ```
 
-Store this as `{USER_EMAIL}`. **Validate it looks like an email address** (contains `@`). If it returns a GUID or display name instead, ask the user for their email.
+Store as `{USER_EMAIL}`. **Validate it contains `@`.** If it returns a GUID or display name, ask the user for their email.
 
 ---
 
 ## Workflow
 
-### Step 1: Detect the Current Sprint Iteration Path
+### Step 1: Detect Sprint Context (run 1a, 1b, and 1c in parallel)
 
-Fetch the user's recent work items to determine the current sprint iteration path, following the "Detecting Area Path and Iteration Path from Recent Work Items" section in the shared skill.
+#### 1a: Current Sprint Iteration Path
+
+Fetch the user's recent work items to determine the current sprint, following the "Detecting Area Path and Iteration Path from Recent Work Items" section in the shared skill.
 
 ```bash
 az boards query \
@@ -50,75 +50,89 @@ az boards query \
   -o json
 ```
 
-From the results, identify the current sprint iteration path (the most recent non-backlog, non-root iteration path). Use this as `{CURRENT_ITERATION}`.
+Identify the most recent non-backlog, non-root iteration path. Store as `{CURRENT_ITERATION}`.
 
-**If the query returns zero results**, fall back to using `{USER_EMAIL}` in the WIQL `WHERE` clause instead of `@me`:
+**If zero results with `@me`**, retry with `{USER_EMAIL}` in the `WHERE` clause. If still nothing, ask the user for their iteration path.
 
-```bash
---wiql "SELECT [System.Id], [System.IterationPath] FROM workitems WHERE [System.AssignedTo] = '{USER_EMAIL}' ORDER BY [System.ChangedDate] DESC"
-```
+#### 1b: Detect Process Template States
 
-If still no results, ask the user:
-
-> "I couldn't detect your current sprint. What's the iteration path? (e.g., `MyProject\\Sprint 5`)"
-
----
-
-### Step 2: Detect Process Template States
-
-Detect the valid states for work items in this project:
+Detect valid states for work items. Try the CLI first:
 
 ```bash
-az boards work-item type state list \
+az boards work-item type list \
   --org "https://dev.azure.com/{ORG}" \
   --project "{WORK_ITEM_PROJECT}" \
-  --type "Task" \
   -o json
 ```
 
-From the results, build a state mapping for this session:
+If that command is not available or fails, fall back to the REST API:
 
-| Intent | Agile | Scrum | CMMI | Basic |
-|--------|-------|-------|------|-------|
-| Not started | New | New | Proposed | To Do |
-| In progress | Active | Committed | Active | Doing |
-| Done | Resolved | Done | Resolved | Done |
-| Closed | Closed | Done | Closed | Done |
-| Removed | Removed | Removed | Closed | Done |
+```bash
+az rest --method get \
+  --url "https://dev.azure.com/{ORG}/{WORK_ITEM_PROJECT}/_apis/wit/workitemtypes/Task/states?api-version=7.1" \
+  --resource "499b84ac-1321-427f-aa17-267ca6975798" \
+  -o json
+```
 
-Store the detected state names:
-- `{STATE_NOT_STARTED}` — the "new/proposed/to do" state
-- `{STATE_IN_PROGRESS}` — the "active/committed/doing" state
-- `{STATE_DONE}` — the terminal "resolved/done" state
-- `{STATE_REMOVED}` — the "removed/closed" state (if it exists; some templates don't have it)
+From the response, classify states using the `stateCategory` field (not the display name):
+- `{STATE_NOT_STARTED}` — category = `Proposed`
+- `{STATE_IN_PROGRESS}` — category = `InProgress`
+- `{STATE_DONE}` — category = `Resolved` or `Completed`
+- `{STATE_REMOVED}` — category = `Removed` (may not exist in all templates)
 
-**Always use these detected variables instead of hardcoded state names.**
+**Also query states for other work item types** present in the sprint (Bug, User Story, PBI) if they differ from Task. Cache per type.
 
-Also build a dynamic exclusion list for the WIQL in Step 3: collect all terminal/done/closed/removed state names from the state list response. Use these in the `NOT IN` clause instead of hardcoding.
+Build a dynamic exclusion list of all terminal state names for use in Step 2's WIQL.
+
+#### 1c: Fetch Sprint Dates
+
+```bash
+az boards iteration project show \
+  --org "https://dev.azure.com/{ORG}" \
+  --project "{WORK_ITEM_PROJECT}" \
+  --path "{CURRENT_ITERATION}" \
+  -o json
+```
+
+Store `{SPRINT_START_DATE}` and `{SPRINT_END_DATE}` for carryover detection and next-sprint logic.
 
 ---
 
-### Step 3: Fetch Active Work Items in the Current Sprint
+### Step 2: Fetch Active Work Items
 
-Query all work items assigned to the user in the current sprint that are not yet done. Use the dynamically detected terminal states from Step 2 in the `NOT IN` clause:
+Query all work items assigned to the user in the current sprint that are not yet done. Format terminal states as single-quoted, comma-separated values for WIQL — e.g., `NOT IN ('Done', 'Closed', 'Removed')`.
+
+**WIQL escaping:** If `{CURRENT_ITERATION}` contains single quotes, escape them by doubling: `'` → `''`.
 
 ```bash
 az boards query \
   --org "https://dev.azure.com/{ORG}" \
   --project "{WORK_ITEM_PROJECT}" \
-  --wiql "SELECT [System.Id], [System.Title], [System.State], [System.WorkItemType], [System.IterationPath], [System.Tags], [System.CreatedDate], [System.ChangedDate] FROM workitems WHERE [System.AssignedTo] = @me AND [System.IterationPath] = '{CURRENT_ITERATION}' AND [System.State] NOT IN ({DYNAMIC_TERMINAL_STATES}) ORDER BY [System.WorkItemType] ASC, [System.State] ASC" \
+  --wiql "SELECT [System.Id] FROM workitems WHERE [System.AssignedTo] = @me AND [System.IterationPath] = '{CURRENT_ITERATION}' AND [System.State] NOT IN ({DYNAMIC_TERMINAL_STATES}) ORDER BY [System.WorkItemType] ASC" \
   -o json
 ```
 
-**If zero results with `@me`**, retry with `{USER_EMAIL}` in the `WHERE` clause.
+**If zero results with `@me`**, retry with `{USER_EMAIL}`. If still zero, output "No active items in `{CURRENT_ITERATION}`. Sprint board looks clean!" and skip to Step 6 (standup with empty content).
 
-**If still zero results**, inform the user: "No active items found in `{CURRENT_ITERATION}`. Your sprint board looks clean!" and skip to Step 7 (standup summary with empty content).
+The query returns work item IDs only. Fetch full field values. For 10+ items, use the batch API:
+
+```bash
+az rest --method post \
+  --url "https://dev.azure.com/{ORG}/{WORK_ITEM_PROJECT}/_apis/wit/workitemsbatch?api-version=7.1" \
+  --resource "499b84ac-1321-427f-aa17-267ca6975798" \
+  --body '{"ids": [ID1, ID2, ...], "fields": ["System.Id","System.Title","System.State","System.WorkItemType","System.IterationPath","System.Tags","System.ChangedDate"]}' \
+  -o json
+```
+
+For fewer than 10 items, individual `az boards work-item show` calls are fine.
 
 ---
 
-### Step 4: Fetch PRs and Build the Cross-Reference
+### Step 3: Fetch PRs and Build the Cross-Reference
 
-#### 4a: Fetch Merged PRs
+**Scope PR fetching:** Only process PRs closed/created within the sprint date window (`{SPRINT_START_DATE}` to `{SPRINT_END_DATE}` + 7 days buffer). This prevents fetching hundreds of old PRs.
+
+#### 3a: Fetch Merged PRs
 
 ```bash
 az repos pr list \
@@ -126,28 +140,27 @@ az repos pr list \
   --project "{PR_PROJECT}" \
   --creator "{USER_EMAIL}" \
   --status completed \
-  --top 100 \
+  --top 50 \
   -o json
 ```
 
-If exactly 100 results, warn: "Fetched max 100 PRs. Some older ones may be missing."
+**Hard limit:** Process linked work items for at most 20 most recent merged PRs. If more exist, warn: "Processing 20 most recent merged PRs."
 
-For each merged PR, fetch linked work items:
+For each (up to 20), fetch linked work items:
 
 ```bash
 az repos pr work-item list \
   --org "https://dev.azure.com/{ORG}" \
+  --project "{PR_PROJECT}" \
   --id {PR_ID} \
   -o json
 ```
 
-**Rate limiting:** If you have many PRs, batch these calls in groups of 10-15 with brief pauses. If any call returns HTTP 429, wait 5 seconds and retry once.
+Build mapping: **work item ID → merged PRs**. Only include work item IDs that match items from Step 2 (cross-project validation — a PR may link to items in other projects).
 
-Build a mapping: **work item ID → list of merged PRs** (with PR title, repo, date).
+If any call returns HTTP 429, wait 5 seconds and retry once.
 
-**Cross-project validation:** When matching PR-linked work item IDs to sprint items, verify the work item ID actually exists in your sprint item list. PRs may link to work items in other projects with coincidentally similar IDs.
-
-#### 4b: Fetch Active (Open) PRs
+#### 3b: Fetch Active (Open) PRs
 
 ```bash
 az repos pr list \
@@ -164,6 +177,7 @@ For each active PR, fetch linked work items and reviewer votes:
 ```bash
 az repos pr work-item list \
   --org "https://dev.azure.com/{ORG}" \
+  --project "{PR_PROJECT}" \
   --id {PR_ID} \
   -o json
 ```
@@ -175,67 +189,66 @@ az repos pr reviewer list \
   -o json
 ```
 
-Build a second mapping: **work item ID → list of open PRs** (with PR title, repo, draft status, reviewer votes).
-
-Classify each open PR's review status:
-- **Awaiting review** — no votes yet
+Classify review status:
+- **Awaiting review** — no votes
 - **Approved** — all required reviewers approved
-- **Changes requested** — at least one `wait-for-author` or `reject` vote
+- **Changes requested** — any `wait-for-author` or `reject` vote
 
-#### 4c: Handle Cross-Project PRs
-
-If `{WORK_ITEM_PROJECT}` and `{PR_PROJECT}` are different, the above queries already handle it — work items are from one project, PRs from another, and the link is resolved via PR-linked work items.
+> Note: Cross-project PRs are handled automatically — work item links resolve across projects.
 
 ---
 
-### Step 5: Auto-Classify and Present the Plan
+### Step 4: Auto-Classify and Present the Plan
 
-**Do not walk through items one-by-one.** Auto-classify everything, then present a single plan for bulk confirmation.
+**Do not walk through items one-by-one.** Auto-classify everything, then present a single plan.
 
 #### Classification Rules
-
-For each active work item, classify automatically:
 
 | Condition | Classification | Action |
 |-----------|---------------|--------|
 | Has merged PR(s) linked | **RESOLVE** | Move to `{STATE_DONE}` + comment |
-| Has open PR awaiting review | **PR IN REVIEW** | Comment (no state change) |
-| Has open PR with changes requested | **NEEDS ATTENTION** | Flag for manual review |
-| `{STATE_IN_PROGRESS}` + no PRs + changed < 14 days ago | **IN PROGRESS** | No change |
-| `{STATE_IN_PROGRESS}` + no PRs + changed > 14 days ago | **STALE** | Flag for input |
+| Has open PR awaiting review | **PR IN REVIEW** | Comment only |
+| Has open PR with changes requested | **NEEDS ATTENTION** | Flag for input |
+| `{STATE_IN_PROGRESS}` + no PRs + changed < 14 days | **IN PROGRESS** | No change |
+| `{STATE_IN_PROGRESS}` + no PRs + changed > 14 days | **STALE** | Flag for input |
 | `{STATE_NOT_STARTED}` + no PRs | **NOT STARTED** | No change |
-| Created before sprint start + still `{STATE_NOT_STARTED}` | **CARRYOVER** | Suggest move |
+| Created before `{SPRINT_START_DATE}` + still `{STATE_NOT_STARTED}` | **CARRYOVER** | Flag for input |
 
-#### Present the Auto-Classification (Compact Format)
+#### Idempotency Checks
 
-Use this dense format — one line per item, grouped by classification:
+Before classifying, check for signs this command already ran:
+- If an item already has a discussion comment starting with "Sprint update:", skip the comment (don't double-post).
+- If an item is already in `{STATE_DONE}`, it should have been excluded by the query — but if it appears, skip it.
+
+#### Present Classification (Compact)
 
 > **{AUTO_COUNT}/{TOTAL_COUNT} classified:**
 >
-> **RESOLVE** ({N})
+> RESOLVE ({N})
 > `#{ID1}` {TITLE} — PR !{PR_ID} merged {DATE}
 > `#{ID2}` {TITLE} — PR !{PR_ID} merged {DATE}
 >
-> **PR IN REVIEW** ({N})
+> PR IN REVIEW ({N})
 > `#{ID3}` {TITLE} — PR !{PR_ID} ({REVIEW_STATUS})
 >
-> **IN PROGRESS** ({N})
+> IN PROGRESS ({N})
 > `#{ID4}` {TITLE}
 >
-> **NOT STARTED** ({N})
+> NOT STARTED ({N})
 > `#{ID5}` {TITLE}
 >
-> **NEEDS INPUT** ({M}) — see below
-> `#{ID6}` {TITLE} — stale 21d
-> `#{ID7}` {TITLE} — carryover
+> NEEDS INPUT ({M})
+> 1. `#{ID6}` {TITLE} — stale 21d
+> 2. `#{ID7}` {TITLE} — carryover
+> 3. `#{ID8}` {TITLE} — changes requested on PR !{PR_ID}
 >
-> Apply? [y] yes / [e] edit / [n] cancel
+> Apply? [y]es [e]dit [n]o
 
-**When the user confirms "y" or "yes":**
+**When the user confirms "y":**
 
-Execute all auto-classified actions. For RESOLVE items, handle state transitions carefully:
+Execute auto-classified actions. For each update:
 
-**State transition safety:** If the item is in `{STATE_NOT_STARTED}` and needs to move to `{STATE_DONE}`, first transition through `{STATE_IN_PROGRESS}` (some process templates don't allow skipping states):
+**State transition safety:** If moving from `{STATE_NOT_STARTED}` to `{STATE_DONE}`, first transition through `{STATE_IN_PROGRESS}`:
 
 ```bash
 az boards work-item update \
@@ -245,20 +258,20 @@ az boards work-item update \
   -o json
 ```
 
-Then move to done:
+Then:
 
 ```bash
 az boards work-item update \
   --org "https://dev.azure.com/{ORG}" \
   --id {ID} \
   --state "{STATE_DONE}" \
-  --discussion "Sprint update: PR(s) merged. {PR_SUMMARY}" \
+  --discussion "Sprint update: PR(s) merged. {SANITIZED_PR_SUMMARY}" \
   -o json
 ```
 
-**Sanitize the `--discussion` value:** Replace any double quotes, backticks, or shell metacharacters in PR titles before embedding them in the `--discussion` argument. Use single quotes around the value if needed.
+**Sanitizing `--discussion`:** Strip all double quotes and backticks from PR titles and user-provided text. Wrap the entire value in double quotes. Example: `--discussion "Sprint update: PR merged - Fix null ref in auth handler"`
 
-For PR IN REVIEW items — add a comment only (no state change):
+For PR IN REVIEW items — comment only:
 
 ```bash
 az boards work-item update \
@@ -268,31 +281,35 @@ az boards work-item update \
   -o json
 ```
 
-For IN PROGRESS and NOT STARTED items — no action taken.
+**Error handling:** If any `az boards work-item update` returns an error (409 conflict, 400 bad request, etc.), log the error inline (`#{ID} — FAILED: {error message}`) and continue with remaining items. Never abort the batch.
 
-**After each update, confirm briefly:** `#{ID} → {STATE_DONE}` or `#{ID} comment added`
+After each update, confirm briefly: `#{ID} → {STATE_DONE}` or `#{ID} comment added`
 
 ---
 
-#### Step 5b: Walk Through Items Needing Input
+#### Step 4b: Items Needing Input
 
-After bulk-applying, handle STALE, NEEDS ATTENTION, CARRYOVER items, and any the user asked to edit.
+After bulk apply, present all items needing input together. Include unlinked PRs in the same prompt (so there is no separate Step 5 prompt).
 
-**Batch input format:** Present all items needing input at once and accept a single response using the format `{number}{action}` separated by spaces:
-
-> **Items needing input:**
+> Items needing input:
 > 1. `#{ID6}` {TITLE} — stale 21d, no PRs
-> 2. `#{ID7}` {TITLE} — carryover from last sprint
-> 3. `#{ID8}` {TITLE} — PR has changes requested
+> 2. `#{ID7}` {TITLE} — carryover
+> 3. `#{ID8}` {TITLE} — changes requested on PR !{PR_ID}
+> 4. PR !{PR_ID} "{PR_TITLE}" — unlinked, likely match: `#{WI_ID}`
 >
-> Actions: **r**esolve **n**ext-sprint **b**locked **x**remove **s**kip
-> Enter actions (e.g., `1s 2n 3b`):
+> Actions: **r**esolve **n**ext-sprint **b**:"reason" **x**remove **s**kip **y**link
+> Enter (e.g., `1s 2n 3b:"waiting on API team" 4y`):
 
-This lets the developer handle all ambiguous items in one response instead of answering per-item.
+**Input validation:**
+- Unknown item numbers → ignore, warn: `#4 — no such item, skipped`
+- Unknown action letters → treat as skip, warn: `1z — unknown action, skipped`
+- Duplicate numbers → use last action
+- Freeform text → attempt to interpret (e.g., "skip all" = all s). If unclear, re-prompt once.
+- If an update fails mid-batch → report inline, continue.
 
-**Parse the response** and execute each action:
+**Parse and execute each action:**
 
-**[r] Resolve** — move to `{STATE_DONE}` (with state transition safety as above):
+**[r] Resolve** — with state transition safety (same as Step 4):
 
 ```bash
 az boards work-item update \
@@ -303,7 +320,7 @@ az boards work-item update \
   -o json
 ```
 
-**[n] Next sprint** — detect next iteration by date order, move the item without additional confirmation (this is reversible):
+**[n] Next sprint** — find next iteration by comparing start/finish dates (not alphabetical). If dates are null, sort siblings by numeric suffix (Sprint 5 before Sprint 6). If ambiguous, ask the user.
 
 ```bash
 az boards iteration project list \
@@ -312,8 +329,6 @@ az boards iteration project list \
   --depth 4 \
   -o json
 ```
-
-**Find the next iteration by comparing start/finish dates**, not alphabetical order. The next iteration is the one whose start date is after `{CURRENT_ITERATION}`'s end date, sorted chronologically. If dates aren't available, use the iteration path structure (next sibling at same level).
 
 ```bash
 az boards work-item update \
@@ -324,9 +339,9 @@ az boards work-item update \
   -o json
 ```
 
-**[b] Blocked** — ask "What's blocking these?" (one prompt for all blocked items), then for each:
+**[b:"reason"] Blocked** — if reason provided inline, use it. If just `b` with no reason, use "Flagged during sprint update."
 
-Fetch existing tags first to avoid overwriting:
+Fetch existing tags (from the batch response in Step 2, or fetch now):
 
 ```bash
 az boards work-item show \
@@ -336,18 +351,18 @@ az boards work-item show \
   -o json
 ```
 
-Extract tags from the JSON response and append `Blocked`:
+**Tag safety:** Parse the existing tags string. If empty/null, set to `Blocked`. If non-empty, append `; Blocked` only if `Blocked` is not already present. Escape any semicolons in existing tag values.
 
 ```bash
 az boards work-item update \
   --org "https://dev.azure.com/{ORG}" \
   --id {ID} \
-  --fields "System.Tags={EXISTING_TAGS}; Blocked" \
-  --discussion "Sprint update: BLOCKED — {BLOCKER_DESCRIPTION}" \
+  --fields "System.Tags={SAFE_TAGS}" \
+  --discussion "Sprint update: BLOCKED — {SANITIZED_REASON}" \
   -o json
 ```
 
-**[x] Remove** — confirm once for all items marked for removal, then:
+**[x] Remove** — confirm once for all items marked x before executing:
 
 ```bash
 az boards work-item update \
@@ -358,17 +373,9 @@ az boards work-item update \
   -o json
 ```
 
-If the process template has no `Removed` state (detected in Step 2), use `{STATE_DONE}` instead with a comment noting it was removed.
+If no `Removed` state exists, use `{STATE_DONE}` with comment "Removed — no longer needed."
 
-**[s] Skip** — no action, move on.
-
----
-
-### Step 6: Handle Unlinked PRs
-
-Check if any merged or open PRs were not linked to any active sprint work item.
-
-For unlinked PRs with high-confidence title matches (>80% similarity), auto-link without asking:
+**[y] Link** — for unlinked PR items, link to the suggested work item:
 
 ```bash
 az repos pr work-item add \
@@ -378,33 +385,39 @@ az repos pr work-item add \
   -o json
 ```
 
-For low-confidence matches, present as a single batch:
+**[s] Skip** — no action.
 
-> **Unlinked PRs:**
-> 1. PR !{PR_ID} "{PR_TITLE}" — likely match: `#{WI_ID}` "{WI_TITLE}"
-> 2. PR !{PR_ID} "{PR_TITLE}" — no match found
+---
+
+### Step 5: Handle Unlinked PRs (silent when empty)
+
+**Skip this step entirely if all PRs are linked.** No output, no mention.
+
+Any unlinked PRs should have already been folded into the Step 4b batch input. This step is only needed if Step 4b was skipped (no ambiguous items existed). In that case, present unlinked PRs:
+
+> Unlinked PRs:
+> 1. PR !{PR_ID} "{PR_TITLE}" — likely match: `#{WI_ID}`
+> 2. PR !{PR_ID} "{PR_TITLE}" — no match
 >
 > Link? (e.g., `1y 2skip` or `2=12345`):
 
 ---
 
-### Step 7: Final Summary and Standup
+### Step 6: Summary and Standup
 
-Present the action log and standup summary together.
-
-> **Sprint update done.** {N} resolved, {M} commented, {K} moved, {J} skipped.
+> Sprint update done. {N} resolved, {M} commented, {K} moved, {J} skipped.
 >
 > ---
 >
-> **Standup** (copy/paste):
+> Standup (copy/paste):
 >
-> **Yesterday:** {Resolved items summarized in plain language — e.g., "Merged OpenTelemetry trace fix (PR !1474128) and App Insights integration (PR !1468981)."}
->
-> **Today:** {In-progress + PR-in-review items — e.g., "Continuing TMP Migration. PR !1462531 (SLA boundary fix) under review."}
->
-> **Blocked:** {Blocked items or "Nothing flagged."}
->
-> **PRs needing review:** {Open PRs with status — e.g., "PR !1462531 (draft, Skynet), PR !1462304 (awaiting review, Skynet)."}
+> Yesterday: {Resolved items in plain language — e.g., "Merged OpenTelemetry trace fix (PR !1474128) and App Insights integration (PR !1468981)."}
+> Today: {In-progress items + PRs awaiting review, deduplicated — e.g., "Continuing TMP Migration. PR !1462531 under review."}
+> Blocked: {Blocked items or "None"}
+
+Use plain text only — no bold, no markdown formatting. This must paste cleanly into Slack, Teams, or any standup bot. Keep each section to 1-2 sentences.
+
+**No rollback.** If the user needs to undo changes, they must use Azure DevOps history on individual work items. Mention this if an error occurs mid-batch.
 
 ---
 
@@ -412,8 +425,10 @@ Present the action log and standup summary together.
 
 - **Auto-classify first, ask questions second.** Developer confirms a plan, not builds one.
 - **Bulk confirmation is the default.** Only surface items individually when they need human judgment.
-- **Batch input for ambiguous items.** One response like `1s 2n 3b` handles everything.
+- **Batch input for ambiguous items.** One response like `1s 2n 3b:"reason"` handles everything.
 - **Single-line confirmations.** `#{ID} → Resolved` — no filler.
 - **Skip means skip.** No follow-up.
-- **The standup summary is the deliverable.** ADO updates are the means; standup text is what makes developers come back daily.
-- **Target: under 2 minutes** for a typical 10-20 item sprint. 3 developer inputs max.
+- **The standup is the deliverable.** Plain text, no formatting, copy-paste ready.
+- **Target: under 2 minutes, max 3 developer inputs** for a typical 10-20 item sprint.
+- **Never auto-link PRs without confirmation.** Always present for user review.
+- **Errors don't abort.** Log inline, continue the batch, report at the end.
