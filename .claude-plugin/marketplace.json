@@ -13,7 +13,7 @@
     {
       "name": "ado-flow",
       "description": "Manage Azure DevOps work items, pull requests, and pipelines using natural language",
-      "version": "1.0.0",
+      "version": "1.2.0",
       "author": {
         "name": "Niketan Rane",
         "email": "niketan.iiita@gmail.com",
@@ -30,6 +30,7 @@
         "work-items",
         "pull-requests",
         "pipelines",
+        "sprint-update",
         "devops"
       ]
     }

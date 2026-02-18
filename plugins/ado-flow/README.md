@@ -16,6 +16,7 @@ Manage Azure DevOps work items, pull requests, and pipelines using natural langu
 | `/adoflow:workitems` | Create, list, query, update, and manage work items |
 | `/adoflow:prs` | Create, list, review, vote on, and manage pull requests |
 | `/adoflow:pipelines` | Run, list, monitor, and manage pipelines and builds |
+| `/adoflow:sprint-update` | Cross-reference active sprint work items with merged PRs to generate a status update |
 
 > **Tip:** If you don't know which command to use, just type `/adoflow` followed by what you want. It will figure out the rest.
 
@@ -25,6 +26,7 @@ Manage Azure DevOps work items, pull requests, and pipelines using natural langu
 /adoflow create a bug for login page crash
 /adoflow list my PRs
 /adoflow run Build-CI on main
+/adoflow show my sprint updates
 ```
 
 Or use the specific commands directly:
@@ -33,6 +35,7 @@ Or use the specific commands directly:
 /adoflow:workitems create a bug for login page crash
 /adoflow:prs list my PRs
 /adoflow:pipelines run Build-CI on main
+/adoflow:sprint-update
 ```
 
 On first use, you'll be prompted for your Azure DevOps organization and project names. Configuration is saved to `~/.config/ado-flow/config.json` and reused automatically.
@@ -70,6 +73,16 @@ Source branch defaults to your current git branch. Target branch defaults to `ma
 /adoflow:pipelines cancel build #567
 /adoflow:pipelines show runs for Build-CI
 ```
+
+## Sprint Update Examples
+
+```
+/adoflow:sprint-update
+/adoflow:sprint-update show my sprint updates
+/adoflow:sprint-update what's the status of my sprint items
+```
+
+Automatically detects your current sprint iteration, fetches all active work items, and cross-references them with your merged PRs — even if the PRs are in a different project. Generates a summary showing which items have progress and which still need work.
 
 ## Configuration
 
