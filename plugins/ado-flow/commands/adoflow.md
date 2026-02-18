@@ -122,4 +122,4 @@ Once classified as a sprint update request, follow the full instructions in the 
 
 Use `{ORG}`, `{WORK_ITEM_PROJECT}`, and `{PR_PROJECT}` from the loaded config.
 
-Refer to the `adoflow:sprint-update` command for the full workflow: detect current sprint, fetch active work items, cross-reference with merged PRs, and generate a status update report.
+Refer to the `adoflow:sprint-update` command for the full workflow: detect current sprint, fetch active work items, cross-reference with merged PRs, walk through each item to suggest state changes, add progress comments, flag blockers, and link orphaned PRs.

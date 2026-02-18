@@ -16,7 +16,7 @@ Manage Azure DevOps work items, pull requests, and pipelines using natural langu
 | `/adoflow:workitems` | Create, list, query, update, and manage work items |
 | `/adoflow:prs` | Create, list, review, vote on, and manage pull requests |
 | `/adoflow:pipelines` | Run, list, monitor, and manage pipelines and builds |
-| `/adoflow:sprint-update` | Cross-reference active sprint work items with merged PRs to generate a status update |
+| `/adoflow:sprint-update` | Walk through sprint work items, suggest state changes based on merged PRs, add progress comments, and flag blockers |
 
 > **Tip:** If you don't know which command to use, just type `/adoflow` followed by what you want. It will figure out the rest.
 
@@ -78,11 +78,18 @@ Source branch defaults to your current git branch. Target branch defaults to `ma
 
 ```
 /adoflow:sprint-update
-/adoflow:sprint-update show my sprint updates
-/adoflow:sprint-update what's the status of my sprint items
+/adoflow:sprint-update update my sprint items
+/adoflow:sprint-update sprint standup
 ```
 
-Automatically detects your current sprint iteration, fetches all active work items, and cross-references them with your merged PRs — even if the PRs are in a different project. Generates a summary showing which items have progress and which still need work.
+Walks through each of your active sprint work items one by one:
+- **Items with merged PRs** — suggests moving to Resolved, adds a progress comment summarizing the PRs
+- **Items without PRs** — asks if it's in progress, blocked, not started, or no longer needed
+- **Blocked items** — adds a blocker comment and tags the item
+- **Unlinked PRs** — offers to link orphaned merged PRs to sprint work items
+- **Final summary** — shows exactly what was updated so you have a clear record
+
+Works across projects — your work items and PRs don't need to be in the same ADO project.
 
 ## Configuration
 
