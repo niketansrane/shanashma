@@ -10,7 +10,7 @@ Manage work items in Azure DevOps: create, list, query, update, delete, and mana
 
 ## Arguments
 
-<user_request> #$ARGUMENTS </user_request>
+<user_request> $ARGUMENTS </user_request>
 
 **If the request above is empty, ask the user:** "What would you like to do with work items? For example: create a bug, list my items, show item #1234, or update an item."
 
