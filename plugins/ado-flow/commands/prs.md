@@ -23,7 +23,7 @@ Before doing anything, load the shared configuration by following the setup inst
 Load the config:
 
 ```bash
-cat ~/.config/ado-flow/config.json 2>/dev/null
+cat "$HOME/.config/ado-flow/config.json" 2>/dev/null
 ```
 
 If no config exists, follow the `ado-flow` skill to run first-time setup. Once config is loaded, you will have: `{ORG}`, `{PR_PROJECT}`.
@@ -156,7 +156,7 @@ Then fetch the threads via REST API:
 az rest --method get \
   --url "https://dev.azure.com/{ORG}/{PR_PROJECT}/_apis/git/repositories/{REPO}/pullRequests/{PR_ID}/threads?api-version=7.1" \
   --resource "https://management.core.windows.net/" \
-  --output-file /tmp/pr_threads.json
+  --output-file "${TMPDIR:-${TEMP:-/tmp}}/pr_threads.json"
 ```
 
 Read and parse the JSON file. Filter to show only threads where `status == "active"`. For each active thread, display:

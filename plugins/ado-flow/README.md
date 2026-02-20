@@ -16,7 +16,7 @@ Manage Azure DevOps work items, pull requests, and pipelines using natural langu
 | `/adoflow:workitems` | Create, list, query, update, and manage work items |
 | `/adoflow:prs` | Create, list, review, vote on, and manage pull requests |
 | `/adoflow:pipelines` | Run, list, monitor, and manage pipelines and builds |
-| `/adoflow:sprint-update` | Auto-classify sprint items via PR activity, bulk-confirm updates, flag blockers, and generate a standup summary |
+| `/adoflow:sprint-update` | Auto-classify sprint items via PR activity, bulk-confirm updates, and flag blockers |
 
 > **Tip:** If you don't know which command to use, just type `/adoflow` followed by what you want. It will figure out the rest.
 
@@ -79,7 +79,6 @@ Source branch defaults to your current git branch. Target branch defaults to `ma
 ```
 /adoflow:sprint-update
 /adoflow:sprint-update quick sprint update
-/adoflow:sprint-update sprint standup
 ```
 
 Auto-classifies your sprint items and presents a plan you confirm in one step:
@@ -87,10 +86,8 @@ Auto-classifies your sprint items and presents a plan you confirm in one step:
 1. **Auto-classifies** every item — RESOLVE (has merged PR), PR IN REVIEW (open PR), IN PROGRESS, NOT STARTED, STALE (no activity 14+ days)
 2. **Bulk confirm** — apply all auto-classifications with one "yes", or edit specific items
 3. **Walks through only ambiguous items** — stale items, items needing attention, carryover candidates
-4. **Move to next sprint** — first-class action for items that won't finish this sprint
-5. **Flag blockers** — adds comment + appends `Blocked` tag (preserves existing tags)
-6. **Link unlinked PRs** — suggests matches based on title similarity
-7. **Standup summary** — generates copy-paste "Yesterday / Today / Blocked" text
+4. **Flag blockers** — adds comment + appends `Blocked` tag (preserves existing tags)
+5. **Link unlinked PRs** — suggests matches based on title similarity
 
 Works across projects — your work items and PRs don't need to be in the same ADO project. Detects your process template (Agile/Scrum/CMMI) and uses the correct state names.
 
@@ -102,11 +99,15 @@ Configuration is stored at `~/.config/ado-flow/config.json`:
 {
   "organization": "your-org",
   "work_item_project": "your-project",
-  "pr_project": "your-project"
+  "pr_project": "your-project",
+  "work_item_states": {
+    "Task": { "not_started": "New", "in_progress": "Active", "done": "Closed", "removed": "Removed" },
+    "Bug": { "not_started": "New", "in_progress": "Active", "done": "Resolved", "removed": "Removed" }
+  }
 }
 ```
 
-To reconfigure, delete the file and run any `/adoflow` command.
+The `work_item_states` key is auto-detected and cached on first run of `/adoflow:sprint-update`. To reconfigure, delete the file (or just the `work_item_states` key) and run any `/adoflow` command.
 
 ## Known Limitations
 

@@ -23,7 +23,7 @@ Before doing anything, load the shared configuration by following the setup inst
 Load the config:
 
 ```bash
-cat ~/.config/ado-flow/config.json 2>/dev/null
+cat "$HOME/.config/ado-flow/config.json" 2>/dev/null
 ```
 
 If no config exists, follow the `ado-flow` skill to run first-time setup. Once config is loaded, you will have: `{ORG}`, `{WORK_ITEM_PROJECT}`.

@@ -133,7 +133,7 @@ The `az repos pr thread` subcommand is not available in all versions of the Azur
 az rest --method get \
   --url "https://dev.azure.com/{ORG}/{PROJECT}/_apis/git/repositories/{REPO}/pullRequests/{PR_ID}/threads?api-version=7.1" \
   --resource "https://management.core.windows.net/" \
-  --output-file /tmp/pr_threads.json
+  --output-file "${TMPDIR:-${TEMP:-/tmp}}/pr_threads.json"
 ```
 
 Then read and parse the JSON file. Active threads have `"status": "active"`.
