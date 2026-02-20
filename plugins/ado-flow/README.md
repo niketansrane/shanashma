@@ -99,15 +99,13 @@ Configuration is stored at `~/.config/ado-flow/config.json`:
 {
   "organization": "your-org",
   "work_item_project": "your-project",
-  "pr_project": "your-project",
-  "work_item_states": {
-    "Task": { "not_started": "New", "in_progress": "Active", "done": "Closed", "removed": "Removed" },
-    "Bug": { "not_started": "New", "in_progress": "Active", "done": "Resolved", "removed": "Removed" }
-  }
+  "pr_project": "your-pr-project",
+  "user_id": "auto-detected-guid",
+  "user_email": "auto-detected"
 }
 ```
 
-The `work_item_states` key is auto-detected and cached on first run of `/adoflow:sprint-update`. To reconfigure, delete the file (or just the `work_item_states` key) and run any `/adoflow` command.
+The `user_id`, `user_email`, and `sprint_cache` keys are auto-detected and cached on first run of `/adoflow:sprint-update`. To reconfigure, delete the file and run any `/adoflow` command.
 
 ## Known Limitations
 
