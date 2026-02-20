@@ -79,7 +79,7 @@ Before doing anything, load the shared configuration by following the setup inst
 Load the config:
 
 ```bash
-cat ~/.config/ado-flow/config.json 2>/dev/null
+cat "$HOME/.config/ado-flow/config.json" 2>/dev/null
 ```
 
 If no config exists, follow the `ado-flow` skill to run first-time setup.
@@ -122,4 +122,4 @@ Once classified as a sprint update request, follow the full instructions in the 
 
 Use `{ORG}`, `{WORK_ITEM_PROJECT}`, and `{PR_PROJECT}` from the loaded config.
 
-Refer to the `adoflow:sprint-update` command for the full workflow: detect current sprint, fetch active work items, cross-reference with merged PRs, walk through each item to suggest state changes, add progress comments, flag blockers, and link orphaned PRs.
+Refer to the `adoflow:sprint-update` command for the full workflow: detect current sprint, fetch active work items, cross-reference with merged PRs, auto-classify items, bulk-confirm state changes, add progress comments, flag blockers, and link orphaned PRs.

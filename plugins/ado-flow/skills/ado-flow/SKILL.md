@@ -13,10 +13,10 @@ On every invocation of any `adoflow:*` command, check whether saved configuratio
 
 ### Step 1: Load Saved Configuration
 
-Check for the config file at `~/.config/ado-flow/config.json`.
+Check for the config file. Use `$HOME` which works across all platforms (Linux, macOS, Git Bash on Windows):
 
 ```bash
-cat ~/.config/ado-flow/config.json 2>/dev/null
+cat "$HOME/.config/ado-flow/config.json" 2>/dev/null
 ```
 
 If the file exists and contains valid JSON with all required fields (`organization`, `work_item_project`, `pr_project`), skip ahead to the relevant task workflow. No setup is needed.
@@ -63,8 +63,8 @@ If the user says "same" for the PR project, use the same value as the work item 
 Save all collected values to the config file:
 
 ```bash
-mkdir -p ~/.config/ado-flow
-cat > ~/.config/ado-flow/config.json <<EOF
+mkdir -p "$HOME/.config/ado-flow"
+cat > "$HOME/.config/ado-flow/config.json" <<EOF
 {
   "organization": "{ORG}",
   "work_item_project": "{WORK_ITEM_PROJECT}",
