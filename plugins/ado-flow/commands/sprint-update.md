@@ -20,12 +20,15 @@ Auto-classifies work items by PR activity, bulk-confirms, walks through only amb
 
 1. **All data-fetching uses `az rest`.** Do not use `az boards query`, `az boards work-item show`, `az repos pr list`, or `az boards iteration *` for fetching. Only use `az boards work-item update` for writes.
 2. **Always write az output to a file.** Pattern: `az rest ... -o json 2>/dev/null > "$HOME/ado-flow-tmp-{name}.json"`. Windows `az` CLI emits encoding warnings that corrupt inline JSON.
-3. **Use `node -e` for JSON processing.** Never use `python3` or `python`. Never pipe into node via stdin. Always read from a file using `require('fs').readFileSync(path)`.
-4. **Never use `/tmp/`.** It resolves to `C:\tmp\` in Node.js on Windows. Use `$HOME/ado-flow-tmp-*.json` for all temp files.
-5. **Never run data-collection in the background.** All data must be collected before presenting the classification.
-6. **Never loop through PRs to fetch linked work items.** The batch API `$expand=Relations` provides all PR links in one call.
-7. **Do not fetch work item states separately.** Deduce state categories from the actual states on fetched work items. Use a broad static exclusion for the WIQL filter.
-8. **Clean up temp files** at the end: `rm -f "$HOME"/ado-flow-tmp-*.json 2>/dev/null`
+3. **For scripts longer than 3 lines, write to a .js file** and run with `node "$HOME/ado-flow-tmp-{name}.js"`. Do not use `node -e` for complex scripts — backslash escaping breaks on Windows. For 1-3 line scripts, `node -e` is fine.
+4. **Never use `python3` or `python`.** Never pipe into node via stdin. Always read from files.
+5. **Never use `/tmp/`.** It resolves to `C:\tmp\` in Node.js on Windows. Use `$HOME/ado-flow-tmp-*` for all temp files.
+6. **Never run data-collection in the background.** All data must be collected before presenting the classification.
+7. **Never loop through PRs to fetch linked work items.** The batch API `$expand=Relations` provides all PR links in one call.
+8. **Do not fetch work item states separately.** Deduce state categories from the actual states on fetched work items.
+9. **Do not use `$expand` and `fields` together** in the batch API. They conflict. Use `$expand=Relations` alone — it returns all fields automatically.
+10. **connectionData API requires `api-version=7.1-preview`** (not `7.1`).
+11. **Clean up temp files** at the end: `rm -f "$HOME"/ado-flow-tmp-*.json "$HOME"/ado-flow-tmp-*.js 2>/dev/null`
 
 ---
 
@@ -41,7 +44,7 @@ If no config exists, follow the `ado-flow` skill for first-time setup.
 
 Map to: `{ORG}`, `{WI_PROJECT}`, `{PR_PROJECT}`.
 
-Also check for cached keys: `user_id` (GUID), `user_email`, `sprint_cache`.
+Also check for cached: `user_id` (GUID), `user_email`.
 
 ### Project Routing Rule
 
@@ -49,69 +52,74 @@ Also check for cached keys: `user_id` (GUID), `user_email`, `sprint_cache`.
 |-----|---------|
 | `_apis/wit/*` (WIQL, batch, work items) | `{WI_PROJECT}` |
 | `_apis/git/pullrequests` | `{PR_PROJECT}` |
-| `_apis/work/teamsettings/iterations` | `{WI_PROJECT}` |
 
 **Never swap.** `{WI_PROJECT}` and `{PR_PROJECT}` may be different.
 
 ---
 
-## Phase 1: Resolve User Identity (0-1 az calls, cached)
+## Phase 1: Resolve Identity + Compute Sprint (0-1 az calls)
 
-Check config for `user_id` (GUID) and `user_email`. **If both present, skip this phase.**
+### 1a: User Identity (0-1 calls, cached)
 
-If missing, fetch via connection data (1 call):
+Check config for `user_id` and `user_email`. **If both present, skip.**
+
+If missing (1 call):
 
 ```bash
 az rest --method get \
-  --url "https://dev.azure.com/{ORG}/_apis/connectionData?api-version=7.1" \
+  --url "https://dev.azure.com/{ORG}/_apis/connectionData?api-version=7.1-preview" \
   --resource "499b84ac-1321-427f-aa17-267ca6975798" \
   -o json 2>/dev/null > "$HOME/ado-flow-tmp-conn.json"
 ```
 
-Extract from response:
-- `authenticatedUser.id` → `{USER_ID}` (GUID, used for PR searchCriteria)
-- `authenticatedUser.providerDisplayName` or look for email in properties → `{USER_EMAIL}`
+Extract `authenticatedUser.id` → `{USER_ID}` (GUID). If email not in response, get via `az account show --query "user.name" -o tsv 2>/dev/null`.
 
-If email not in connectionData, get it:
-```bash
-az account show --query "user.name" -o tsv 2>/dev/null
+**Cache immediately** in config.
+
+### 1b: Compute Sprint from Today's Date (0 calls)
+
+The iteration path follows a fixed format: `{WI_PROJECT}\{year}\H{half}\Q{quarter}\{month_name}`.
+
+**Compute it from today's date — no API call needed:**
+
+```javascript
+const now = new Date();
+const year = now.getFullYear();
+const month = now.getMonth(); // 0-indexed
+const monthNames = ['January','February','March','April','May','June',
+                    'July','August','September','October','November','December'];
+const quarter = Math.floor(month / 3) + 1; // Q1-Q4
+const half = month < 6 ? 1 : 2; // H1 or H2
+
+const iterationPath = `{WI_PROJECT}\\${year}\\H${half}\\Q${quarter}\\${monthNames[month]}`;
+
+// Sprint dates = first and last day of the current month
+const sprintStart = `${year}-${String(month+1).padStart(2,'0')}-01`;
+const lastDay = new Date(year, month+1, 0).getDate();
+const sprintEnd = `${year}-${String(month+1).padStart(2,'0')}-${lastDay}`;
 ```
 
-**Cache both immediately** in config using node:
-```bash
-node -e "
-const fs=require('fs'), p=require('path'), os=require('os');
-const f=p.join(os.homedir(),'.config','ado-flow','config.json');
-const c=JSON.parse(fs.readFileSync(f,'utf8'));
-c.user_id='{USER_ID}'; c.user_email='{USER_EMAIL}';
-fs.writeFileSync(f,JSON.stringify(c,null,2));
-"
-```
+Store: `{CURRENT_ITERATION}`, `{SPRINT_START}`, `{SPRINT_END}`.
+
+This eliminates ALL iteration detection APIs, team settings lookups, and classification node traversals.
 
 ---
 
-## Phase 2: Fetch Work Items + Detect Sprint (2-3 az calls)
+## Phase 2: Fetch Sprint Work Items with PR Links (2 az calls)
 
-### 2a: Single WIQL Query (1 call)
+### 2a: WIQL Query — Sprint Items Only (1 call)
 
-One query does both iteration detection AND item fetching. Use a broad static exclusion that covers all ADO process templates:
-
-```bash
-az rest --method post \
-  --url "https://dev.azure.com/{ORG}/{WI_PROJECT}/_apis/wit/wiql?api-version=7.1" \
-  --resource "499b84ac-1321-427f-aa17-267ca6975798" \
-  --body '{"query": "SELECT [System.Id], [System.IterationPath] FROM workitems WHERE [System.AssignedTo] = @me AND [System.State] NOT IN ('"'"'Closed'"'"','"'"'Done'"'"','"'"'Resolved'"'"','"'"'Removed'"'"','"'"'Completed'"'"') ORDER BY [System.ChangedDate] DESC"}' \
-  -o json 2>/dev/null > "$HOME/ado-flow-tmp-wiql.json"
-```
-
-**If the `--body` escaping is problematic**, write body to file first:
+Since we know the iteration path, the WIQL filters directly to sprint items. Write the body to a file:
 
 ```bash
 node -e "
-const fs=require('fs'), p=require('path'), os=require('os');
+const fs=require('fs'), os=require('os'), p=require('path');
 fs.writeFileSync(p.join(os.homedir(),'ado-flow-tmp-wiql-body.json'),
-  JSON.stringify({query: \"SELECT [System.Id], [System.IterationPath] FROM workitems WHERE [System.AssignedTo] = @me AND [System.State] NOT IN ('Closed','Done','Resolved','Removed','Completed') ORDER BY [System.ChangedDate] DESC\"}));
+  JSON.stringify({query: \"SELECT [System.Id] FROM workitems WHERE [System.AssignedTo] = @me AND [System.IterationPath] = '{CURRENT_ITERATION}' AND [System.State] NOT IN ('Closed','Done','Resolved','Removed','Completed') ORDER BY [System.WorkItemType] ASC\"}));
 "
+```
+
+```bash
 az rest --method post \
   --url "https://dev.azure.com/{ORG}/{WI_PROJECT}/_apis/wit/wiql?api-version=7.1" \
   --resource "499b84ac-1321-427f-aa17-267ca6975798" \
@@ -119,25 +127,22 @@ az rest --method post \
   -o json 2>/dev/null > "$HOME/ado-flow-tmp-wiql.json"
 ```
 
-Parse with node:
-- Response has `workItems[].id` and `columns` array. **Note:** WIQL via REST returns IDs only in `workItems`, field values are NOT inline. The `IterationPath` values come from a separate step.
-
-Actually, the WIQL REST response only returns `workItems: [{id, url}]` — no field values. So we need the batch fetch to get IterationPath.
-
-**Revised approach:** The WIQL gives us IDs. The batch fetch gives us fields (including IterationPath) + relations. From the batch results, we detect the sprint AND get all the data we need.
+If 0 results, output "No active items in `{CURRENT_ITERATION}`. Sprint board looks clean!" and stop.
 
 ### 2b: Batch Fetch with Relations (1 call)
 
-Write the request body:
+**Use `$expand=Relations` ONLY — do not include `fields`.** The API throws `ConflictingParametersException` when both are present. `$expand=Relations` returns all fields automatically.
+
+Write the body:
 
 ```bash
 node -e "
-const fs=require('fs'), p=require('path'), os=require('os');
+const fs=require('fs'), os=require('os'), p=require('path');
 const wiql=JSON.parse(fs.readFileSync(p.join(os.homedir(),'ado-flow-tmp-wiql.json'),'utf8'));
 const ids=wiql.workItems.map(w=>w.id);
-console.log('Work items found: '+ids.length);
+console.log('Sprint items: '+ids.length);
 fs.writeFileSync(p.join(os.homedir(),'ado-flow-tmp-batch-body.json'),
-  JSON.stringify({ids:ids,'\$expand':'Relations',fields:['System.Id','System.Title','System.State','System.WorkItemType','System.IterationPath','System.Tags','System.ChangedDate']}));
+  JSON.stringify({ids: ids, '\$expand': 'Relations'}));
 "
 ```
 
@@ -149,88 +154,53 @@ az rest --method post \
   -o json 2>/dev/null > "$HOME/ado-flow-tmp-batch.json"
 ```
 
-### 2c: Parse Everything from Batch Response
+### 2c: Parse Batch Response
 
-This single node script does iteration detection, sprint filtering, PR link extraction, and state deduction — all from the batch response:
+Write a .js file for parsing (avoids backslash escaping issues with `node -e`):
 
-```bash
-node -e "
-const fs=require('fs'), p=require('path'), os=require('os');
-const data=JSON.parse(fs.readFileSync(p.join(os.homedir(),'ado-flow-tmp-batch.json'),'utf8'));
+```javascript
+// Write this to $HOME/ado-flow-tmp-parse.js
+const fs = require('fs'), p = require('path'), os = require('os');
+const home = os.homedir();
+const data = JSON.parse(fs.readFileSync(p.join(home, 'ado-flow-tmp-batch.json'), 'utf8'));
 
-// 1. Detect sprint: most common non-backlog iteration
-const iterCounts={};
-for(const wi of data.value){
-  const ip=wi.fields['System.IterationPath'];
-  if(ip && ip.includes('\\\\') && !ip.toLowerCase().includes('backlog')) iterCounts[ip]=(iterCounts[ip]||0)+1;
-}
-const sprint=Object.entries(iterCounts).sort((a,b)=>b[1]-a[1])[0];
-if(!sprint){console.log('NO_SPRINT'); process.exit(0);}
-const sprintPath=sprint[0];
-console.log('Sprint: '+sprintPath);
+const wiPrMap = {};
+const workItems = {};
 
-// 2. Filter to sprint items only
-const sprintItems=data.value.filter(wi=>wi.fields['System.IterationPath']===sprintPath);
-console.log('Sprint items: '+sprintItems.length);
-
-// 3. Deduce states from actual items (no separate API call)
-const states=new Set(sprintItems.map(wi=>wi.fields['System.State']));
-console.log('States found: '+[...states].join(', '));
-
-// 4. Extract PR links from relations
-const wiPrMap={};
-const workItems={};
-for(const wi of sprintItems){
-  workItems[wi.id]=wi.fields;
-  wiPrMap[wi.id]=[];
-  if(wi.relations){
-    for(const rel of wi.relations){
-      if(rel.rel==='ArtifactLink' && rel.attributes && rel.attributes.name==='Pull Request'){
-        const prId=parseInt(rel.url.split('/').pop(),10);
-        if(!isNaN(prId)) wiPrMap[wi.id].push(prId);
+for (const wi of data.value) {
+  workItems[wi.id] = wi.fields;
+  wiPrMap[wi.id] = [];
+  if (wi.relations) {
+    for (const rel of wi.relations) {
+      if (rel.rel === 'ArtifactLink' && rel.attributes && rel.attributes.name === 'Pull Request') {
+        const prId = parseInt(rel.url.split('/').pop(), 10);
+        if (!isNaN(prId)) wiPrMap[wi.id].push(prId);
       }
     }
   }
 }
-const allPrIds=[...new Set(Object.values(wiPrMap).flat())];
-console.log('PR links: '+allPrIds.length+' unique');
 
-// 5. Save parsed data
-fs.writeFileSync(p.join(os.homedir(),'ado-flow-tmp-parsed.json'),JSON.stringify({sprintPath,workItems,wiPrMap,allPrIds,states:[...states]}));
-"
+const allPrIds = [...new Set(Object.values(wiPrMap).flat())];
+console.log('Items: ' + Object.keys(workItems).length);
+console.log('PR links: ' + allPrIds.length + ' unique');
+const states = [...new Set(Object.values(workItems).map(f => f['System.State']))];
+console.log('States: ' + states.join(', '));
+
+fs.writeFileSync(p.join(home, 'ado-flow-tmp-parsed.json'),
+  JSON.stringify({ workItems, wiPrMap, allPrIds, states }));
 ```
-
-If `NO_SPRINT`, ask the user for their iteration path.
-
-### 2d: Sprint Dates (0-1 calls, cached)
-
-Check `sprint_cache` in config. **If valid (today ≤ end_date), skip.**
-
-If stale or missing (1 call):
 
 ```bash
-az rest --method get \
-  --url "https://dev.azure.com/{ORG}/{WI_PROJECT}/_apis/work/teamsettings/iterations?api-version=7.1" \
-  --resource "499b84ac-1321-427f-aa17-267ca6975798" \
-  -o json 2>/dev/null > "$HOME/ado-flow-tmp-iterations.json"
+node "$HOME/ado-flow-tmp-parse.js"
 ```
 
-Parse with node to find matching iteration by path, extract `attributes.startDate` and `attributes.finishDate`. If not found in team settings, fall back to:
-
-```bash
-az rest --method get \
-  --url "https://dev.azure.com/{ORG}/{WI_PROJECT}/_apis/wit/classificationnodes/Iterations?api-version=7.1&\$depth=5" \
-  --resource "499b84ac-1321-427f-aa17-267ca6975798" \
-  -o json 2>/dev/null > "$HOME/ado-flow-tmp-class-iterations.json"
-```
-
-Parse recursively to find matching node. Cache sprint dates immediately.
+`{WI_PR_MAP}` is now built. **Do NOT fall back to per-PR loops.** Empty relations = no PRs linked.
 
 ---
 
-## Phase 3: Fetch Sprint-Scoped PRs via REST (2 calls, run in parallel)
+## Phase 3: Fetch Sprint-Scoped PRs via REST (2 calls)
 
-**Use `az rest` with `searchCriteria.minTime` for server-side date filtering.** This returns only PRs within the sprint window — no client-side date filtering needed.
+**Run 3a and 3b in parallel.** Server-side date filtering via `searchCriteria.minTime` — returns only PRs in the sprint window.
 
 ### 3a: Merged PRs (1 call)
 
@@ -241,9 +211,9 @@ az rest --method get \
   -o json 2>/dev/null > "$HOME/ado-flow-tmp-merged-prs.json"
 ```
 
-**Validate:** If 0 results and this is the first run, the `{PR_PROJECT}` may be wrong. Warn: "No PRs found in `{PR_PROJECT}`. Is this the correct project for your repos?" Ask the user and update config if needed.
+**Validate:** If 0 results on first run, warn: "No PRs found in `{PR_PROJECT}`. Correct project?" Ask user, update config if needed.
 
-Client-side: filter out `isDraft == true` (unlikely for completed PRs, but safe).
+Client-side: filter out `isDraft == true`.
 
 ### 3b: Active Non-Draft PRs (1 call)
 
@@ -256,26 +226,17 @@ az rest --method get \
 
 Client-side: filter out `isDraft == true`.
 
-### 3c: Cross-Reference + Reviewers (0 calls + 0-3 calls)
+### 3c: Cross-Reference + Reviewers (0 calls)
 
-Parse merged and active PRs. Build lookups: `{MERGED_PR_MAP}`, `{ACTIVE_PR_MAP}`.
+Parse PR JSON files. Build lookups: `{MERGED_PR_MAP}`, `{ACTIVE_PR_MAP}`.
 
-Cross-reference with `{WI_PR_MAP}` from Phase 2c — all in-memory, 0 calls.
+Cross-reference with `{WI_PR_MAP}` — in-memory, 0 calls.
 
-**Note:** The PR list response already includes `reviewers[]` with vote status. Check if reviewer data is present — if so, skip separate reviewer calls entirely. The `reviewers` field on each PR contains `vote` values (10=approved, 0=no vote, -5=wait, -10=reject).
-
-If reviewers are NOT in the list response, fetch only for linked active PRs:
-
-```bash
-az rest --method get \
-  --url "https://dev.azure.com/{ORG}/{PR_PROJECT}/_apis/git/pullrequests/{PR_ID}?api-version=7.1" \
-  --resource "499b84ac-1321-427f-aa17-267ca6975798" \
-  -o json 2>/dev/null
-```
+The PR list response includes `reviewers[]` with `vote` values (10=approved, 0=no vote, -5=wait, -10=reject). **Use these directly — no separate reviewer calls needed.**
 
 ### 3d: Unlinked PR Detection (0 calls)
 
-From merged + active PR maps, identify PRs not in `{WI_PR_MAP}`. Fuzzy match titles against work items. Present as suggestions.
+PRs in merged/active maps not referenced by any `{WI_PR_MAP}` entry → unlinked. Fuzzy match titles against work items.
 
 ---
 
@@ -283,14 +244,14 @@ From merged + active PR maps, identify PRs not in `{WI_PR_MAP}`. Fuzzy match tit
 
 ### State Classification
 
-Deduce categories from actual states on fetched items — no external lookup:
+Deduce from actual states — no external lookup:
 
 | Common states | Category |
 |--------------|----------|
 | New, To Do, Proposed | NOT_STARTED |
 | Active, In Progress, Committed, Open | IN_PROGRESS |
 
-If an item's state doesn't match known patterns, treat it as IN_PROGRESS.
+Unknown states → treat as IN_PROGRESS.
 
 ### Classification Rules
 
@@ -306,7 +267,7 @@ If an item's state doesn't match known patterns, treat it as IN_PROGRESS.
 
 ### Idempotency
 
-- Skip items already in a done state (shouldn't be in results, but check).
+- Skip items already in a done state.
 - Skip comments if "Sprint update:" already exists in discussion.
 
 ### Present Plan
@@ -336,7 +297,7 @@ If an item's state doesn't match known patterns, treat it as IN_PROGRESS.
 
 ## Phase 5: Apply Updates (N az calls)
 
-**Use `az boards work-item update` for writes** (simpler than REST PATCH):
+**Use `az boards work-item update` for writes:**
 
 ```bash
 az boards work-item update \
@@ -347,7 +308,7 @@ az boards work-item update \
   -o json 2>/dev/null
 ```
 
-**State transition safety:** If the update fails with a state transition error, try going through an intermediate state first. Deduce the intermediate from the item's current state and target.
+**State transition safety:** If update fails with state transition error, try intermediate state first.
 
 **Sanitizing `--discussion`:** Strip double quotes and backticks.
 
@@ -362,7 +323,6 @@ Present all together after auto-apply:
 > 2. PR !{PR_ID} "{TITLE}" — unlinked, likely match: `#{WI_ID}`
 >
 > Actions: **r**esolve **b**:"reason" **x**remove **s**kip **y**link
-> Enter (e.g., `1s 2b:"waiting on API team" 3y`):
 
 Execute actions using `az boards work-item update` or `az repos pr work-item add`.
 
@@ -374,7 +334,7 @@ Execute actions using `az boards work-item update` or `az repos pr work-item add
 > {CALL_COUNT} API calls | {WORK_ITEM_COUNT} items | ~{ELAPSED}s
 
 ```bash
-rm -f "$HOME"/ado-flow-tmp-*.json 2>/dev/null
+rm -f "$HOME"/ado-flow-tmp-*.json "$HOME"/ado-flow-tmp-*.js 2>/dev/null
 ```
 
 ---
@@ -384,12 +344,13 @@ rm -f "$HOME"/ado-flow-tmp-*.json 2>/dev/null
 | Phase | First run | Cached run |
 |-------|-----------|------------|
 | Identity | 1 | 0 |
-| WIQL + Batch | 2 | 2 |
-| Sprint dates | 1 | 0 |
+| Sprint detection | 0 | 0 |
+| WIQL (sprint-filtered) | 1 | 1 |
+| Batch + Relations | 1 | 1 |
 | Merged PRs | 1 | 1 |
 | Active PRs | 1 | 1 |
-| Reviewers | 0-3 | 0-3 |
-| **Total (data)** | **6-9** | **4-7** |
+| Reviewers | 0 (in PR response) | 0 |
+| **Total (data)** | **5** | **4** |
 | Updates (apply) | N | N |
 
 **You MUST output the diagnostic line in the classification AND in the final summary.**
