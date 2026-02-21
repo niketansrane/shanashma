@@ -28,6 +28,10 @@ Generates a copy-paste-ready standup from your last 24 hours of Azure DevOps act
 8. **connectionData API requires `api-version=7.1-preview`** (not `7.1`).
 9. **Clean up temp files** at the end: `rm -f "$HOME"/ado-flow-tmp-*.json "$HOME"/ado-flow-tmp-*.js 2>/dev/null`
 10. **This command is read-only.** No writes to Azure DevOps.
+11. **Always include `--headers "Content-Type=application/json"` on every `az rest --method post` call.** Without it, Azure DevOps returns HTTP 400 (`VssRequestContentTypeNotSupportedException`).
+12. **Never embed iteration paths with backslashes in `node -e` strings.** Write WIQL/batch body generation to a `.js` file. Construct paths using `String.fromCharCode(92)` for the backslash separator. Same for any JSON key containing `$` (like `$expand`) — use `.js` files to avoid shell variable expansion.
+13. **If `--body @"$HOME/..."` fails on Windows,** use `--body @"$(cygpath -w "$HOME/ado-flow-tmp-{name}.json")"` to convert to a Windows-native path.
+14. **After each `az rest` call writing to a file, verify the file is non-empty.** If 0 bytes, re-run without `2>/dev/null` to diagnose.
 
 ---
 
@@ -101,18 +105,24 @@ Store: `{CURRENT_ITERATION}`.
 
 ### 2a: WIQL Query — Items Changed Yesterday (1 call)
 
+Write `$HOME/ado-flow-tmp-wiql-gen.js`:
+
+```javascript
+// $HOME/ado-flow-tmp-wiql-gen.js
+const fs = require('fs'), os = require('os'), p = require('path');
+const query = "SELECT [System.Id] FROM workitems WHERE [System.AssignedTo] = @me AND [System.ChangedDate] >= @today - 1 ORDER BY [System.ChangedDate] DESC";
+fs.writeFileSync(p.join(os.homedir(), 'ado-flow-tmp-wiql-body.json'), JSON.stringify({ query }));
+```
+
 ```bash
-node -e "
-const fs=require('fs'), os=require('os'), p=require('path');
-fs.writeFileSync(p.join(os.homedir(),'ado-flow-tmp-wiql-body.json'),
-  JSON.stringify({query: \"SELECT [System.Id] FROM workitems WHERE [System.AssignedTo] = @me AND [System.ChangedDate] >= @today - 1 ORDER BY [System.ChangedDate] DESC\"}));
-"
+node "$HOME/ado-flow-tmp-wiql-gen.js"
 ```
 
 ```bash
 az rest --method post \
   --url "https://dev.azure.com/{ORG}/{WI_PROJECT}/_apis/wit/wiql?api-version=7.1" \
   --resource "499b84ac-1321-427f-aa17-267ca6975798" \
+  --headers "Content-Type=application/json" \
   --body "@$HOME/ado-flow-tmp-wiql-body.json" \
   -o json 2>/dev/null > "$HOME/ado-flow-tmp-wiql.json"
 ```
@@ -121,22 +131,29 @@ az rest --method post \
 
 **Only if WIQL returned results.** Use `$expand=Relations` ONLY — do not include `fields`.
 
+Write `$HOME/ado-flow-tmp-batch-gen.js`:
+
+```javascript
+// $HOME/ado-flow-tmp-batch-gen.js
+const fs = require('fs'), os = require('os'), p = require('path');
+const wiql = JSON.parse(fs.readFileSync(p.join(os.homedir(), 'ado-flow-tmp-wiql.json'), 'utf8'));
+const ids = wiql.workItems.map(w => w.id);
+console.log('Changed items: ' + ids.length);
+if (ids.length === 0) { process.exit(0); }
+const body = { ids };
+body['$expand'] = 'Relations';
+fs.writeFileSync(p.join(os.homedir(), 'ado-flow-tmp-batch-body.json'), JSON.stringify(body));
+```
+
 ```bash
-node -e "
-const fs=require('fs'), os=require('os'), p=require('path');
-const wiql=JSON.parse(fs.readFileSync(p.join(os.homedir(),'ado-flow-tmp-wiql.json'),'utf8'));
-const ids=wiql.workItems.map(w=>w.id);
-console.log('Changed items: '+ids.length);
-if(ids.length===0){process.exit(0);}
-fs.writeFileSync(p.join(os.homedir(),'ado-flow-tmp-batch-body.json'),
-  JSON.stringify({ids: ids, '\$expand': 'Relations'}));
-"
+node "$HOME/ado-flow-tmp-batch-gen.js"
 ```
 
 ```bash
 az rest --method post \
   --url "https://dev.azure.com/{ORG}/{WI_PROJECT}/_apis/wit/workitemsbatch?api-version=7.1" \
   --resource "499b84ac-1321-427f-aa17-267ca6975798" \
+  --headers "Content-Type=application/json" \
   --body "@$HOME/ado-flow-tmp-batch-body.json" \
   -o json 2>/dev/null > "$HOME/ado-flow-tmp-batch.json"
 ```
@@ -177,12 +194,19 @@ az rest --method get \
 
 If Phase 2 already fetched sprint items with `{CURRENT_ITERATION}` filter, reuse that data. Otherwise, run a WIQL for current sprint active items:
 
+Write `$HOME/ado-flow-tmp-today-gen.js`:
+
+```javascript
+// $HOME/ado-flow-tmp-today-gen.js
+const fs = require('fs'), os = require('os'), p = require('path');
+const bs = String.fromCharCode(92); // backslash
+const iterPath = ['{WI_PROJECT}','{YEAR}','H{HALF}','Q{QUARTER}','{MONTH_NAME}'].join(bs);
+const query = `SELECT [System.Id] FROM workitems WHERE [System.AssignedTo] = @me AND [System.IterationPath] = '${iterPath}' AND [System.State] NOT IN ('Closed','Done','Resolved','Removed','Completed') ORDER BY [System.ChangedDate] DESC`;
+fs.writeFileSync(p.join(os.homedir(), 'ado-flow-tmp-today-body.json'), JSON.stringify({ query }));
+```
+
 ```bash
-node -e "
-const fs=require('fs'), os=require('os'), p=require('path');
-fs.writeFileSync(p.join(os.homedir(),'ado-flow-tmp-today-body.json'),
-  JSON.stringify({query: \"SELECT [System.Id] FROM workitems WHERE [System.AssignedTo] = @me AND [System.IterationPath] = '{CURRENT_ITERATION}' AND [System.State] NOT IN ('Closed','Done','Resolved','Removed','Completed') ORDER BY [System.ChangedDate] DESC\"}));
-"
+node "$HOME/ado-flow-tmp-today-gen.js"
 ```
 
 If not already fetched, run the WIQL + batch fetch. Otherwise, filter the Phase 2 batch data to items in `{CURRENT_ITERATION}` with active states.
@@ -230,6 +254,7 @@ if (batch && batch.value) {
 // PRs I created/merged
 if (myPrs && myPrs.value) {
   for (const pr of myPrs.value) {
+    if (pr.isDraft) continue;
     const status = pr.status === 'completed' ? 'merged' :
                    pr.status === 'abandoned' ? 'abandoned' : 'created';
     yesterday.push(`- PR !${pr.pullRequestId} "${pr.title}" — ${status}`);
@@ -240,6 +265,7 @@ if (myPrs && myPrs.value) {
 if (reviewedPrs && reviewedPrs.value) {
   const myPrIds = new Set((myPrs?.value || []).map(pr => pr.pullRequestId));
   for (const pr of reviewedPrs.value) {
+    if (pr.isDraft) continue;
     if (myPrIds.has(pr.pullRequestId)) continue; // skip my own
     const myVote = (pr.reviewers || []).find(r => r.id === userId);
     const voteLabel = !myVote ? 'reviewed' :

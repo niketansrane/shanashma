@@ -28,6 +28,10 @@ Combines your review queue, PR status, sprint progress, pipeline health, and pri
 8. **connectionData API requires `api-version=7.1-preview`** (not `7.1`).
 9. **Clean up temp files** at the end: `rm -f "$HOME"/ado-flow-tmp-*.json "$HOME"/ado-flow-tmp-*.js 2>/dev/null`
 10. **This command is read-only.** No writes to Azure DevOps.
+11. **Always include `--headers "Content-Type=application/json"` on every `az rest --method post` call.** Without it, Azure DevOps returns HTTP 400 (`VssRequestContentTypeNotSupportedException`).
+12. **Never embed iteration paths with backslashes in `node -e` strings.** Write WIQL/batch body generation to a `.js` file. Construct paths using `String.fromCharCode(92)` for the backslash separator. Same for any JSON key containing `$` (like `$expand`) — use `.js` files to avoid shell variable expansion.
+13. **If `--body @"$HOME/..."` fails on Windows,** use `--body @"$(cygpath -w "$HOME/ado-flow-tmp-{name}.json")"` to convert to a Windows-native path.
+14. **After each `az rest` call writing to a file, verify the file is non-empty.** If 0 bytes, re-run without `2>/dev/null` to diagnose.
 
 ---
 
@@ -141,18 +145,26 @@ az rest --method get \
 
 ### 3a: WIQL Query — Sprint Items (1 call)
 
+Write `$HOME/ado-flow-tmp-wiql-gen.js`:
+
+```javascript
+// $HOME/ado-flow-tmp-wiql-gen.js
+const fs = require('fs'), os = require('os'), p = require('path');
+const bs = String.fromCharCode(92); // backslash
+const iterPath = ['{WI_PROJECT}','{YEAR}','H{HALF}','Q{QUARTER}','{MONTH_NAME}'].join(bs);
+const query = `SELECT [System.Id] FROM workitems WHERE [System.AssignedTo] = @me AND [System.IterationPath] = '${iterPath}' ORDER BY [System.State] ASC`;
+fs.writeFileSync(p.join(os.homedir(), 'ado-flow-tmp-wiql-body.json'), JSON.stringify({ query }));
+```
+
 ```bash
-node -e "
-const fs=require('fs'), os=require('os'), p=require('path');
-fs.writeFileSync(p.join(os.homedir(),'ado-flow-tmp-wiql-body.json'),
-  JSON.stringify({query: \"SELECT [System.Id] FROM workitems WHERE [System.AssignedTo] = @me AND [System.IterationPath] = '{CURRENT_ITERATION}' ORDER BY [System.State] ASC\"}));
-"
+node "$HOME/ado-flow-tmp-wiql-gen.js"
 ```
 
 ```bash
 az rest --method post \
   --url "https://dev.azure.com/{ORG}/{WI_PROJECT}/_apis/wit/wiql?api-version=7.1" \
   --resource "499b84ac-1321-427f-aa17-267ca6975798" \
+  --headers "Content-Type=application/json" \
   --body "@$HOME/ado-flow-tmp-wiql-body.json" \
   -o json 2>/dev/null > "$HOME/ado-flow-tmp-wiql.json"
 ```
@@ -161,22 +173,29 @@ az rest --method post \
 
 **Only if WIQL returned results.** Use `$expand=Relations` ONLY.
 
+Write `$HOME/ado-flow-tmp-batch-gen.js`:
+
+```javascript
+// $HOME/ado-flow-tmp-batch-gen.js
+const fs = require('fs'), os = require('os'), p = require('path');
+const wiql = JSON.parse(fs.readFileSync(p.join(os.homedir(), 'ado-flow-tmp-wiql.json'), 'utf8'));
+const ids = wiql.workItems.map(w => w.id);
+console.log('Sprint items: ' + ids.length);
+if (ids.length === 0) { process.exit(0); }
+const body = { ids };
+body['$expand'] = 'Relations';
+fs.writeFileSync(p.join(os.homedir(), 'ado-flow-tmp-batch-body.json'), JSON.stringify(body));
+```
+
 ```bash
-node -e "
-const fs=require('fs'), os=require('os'), p=require('path');
-const wiql=JSON.parse(fs.readFileSync(p.join(os.homedir(),'ado-flow-tmp-wiql.json'),'utf8'));
-const ids=wiql.workItems.map(w=>w.id);
-console.log('Sprint items: '+ids.length);
-if(ids.length===0){process.exit(0);}
-fs.writeFileSync(p.join(os.homedir(),'ado-flow-tmp-batch-body.json'),
-  JSON.stringify({ids: ids, '\$expand': 'Relations'}));
-"
+node "$HOME/ado-flow-tmp-batch-gen.js"
 ```
 
 ```bash
 az rest --method post \
   --url "https://dev.azure.com/{ORG}/{WI_PROJECT}/_apis/wit/workitemsbatch?api-version=7.1" \
   --resource "499b84ac-1321-427f-aa17-267ca6975798" \
+  --headers "Content-Type=application/json" \
   --body "@$HOME/ado-flow-tmp-batch-body.json" \
   -o json 2>/dev/null > "$HOME/ado-flow-tmp-batch.json"
 ```
@@ -238,6 +257,7 @@ function relativeTime(dateStr) {
 const reviewQueue = [];
 if (reviewQueueRaw && reviewQueueRaw.value) {
   for (const pr of reviewQueueRaw.value) {
+    if (pr.isDraft) continue;
     if (pr.createdBy && pr.createdBy.id === userId) continue;
     const myReview = (pr.reviewers || []).find(r => r.id === userId);
     if (!myReview || myReview.vote === 0) {
@@ -307,7 +327,7 @@ if (buildsRaw && buildsRaw.value) {
                   b.result === 'canceled' ? '\u23F9' :
                   b.status === 'inProgress' ? '\u23F3' : '\u2753';
     pipelines.push({ name: b.definition?.name || 'unknown', number: b.buildNumber,
-      emoji, result: b.result || b.status, branch: b.sourceBranch?.replace('refs/heads/', '') || '',
+      emoji, result: b.result || b.status, branch: b.sourceBranch?.replace('refs/heads/', '').replace(/refs\/pull\/(\d+)\/merge/, 'PR #$1') || '',
       time: relativeTime(b.finishTime || b.startTime) });
   }
 }
