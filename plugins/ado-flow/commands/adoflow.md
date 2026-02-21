@@ -17,7 +17,10 @@ This is the unified entry point for all Azure DevOps operations. Analyze the use
 - **Work items:** create a bug, list my items, show #1234, update a task
 - **Pull requests:** create a PR, list my PRs, approve PR #42, show comments
 - **Pipelines:** list pipelines, run Build-CI, show build #567, cancel a build
-- **Sprint update:** show my sprint updates, sprint progress report"
+- **Sprint update:** show my sprint updates, sprint progress report
+- **Standup:** generate my standup, daily summary
+- **Link PRs:** link unlinked PRs, find orphan PRs
+- **Morning:** morning briefing, what should I work on"
 
 Do not proceed until you have a clear request from the user.
 
@@ -60,6 +63,34 @@ Route to the **Sprint Update** workflow if the request mentions any of these:
 - Cross-referencing **work items** with **merged PRs**
 - Asking for a **status update** or **progress summary** on sprint items
 
+### Standup
+
+Route to the **Standup** workflow if the request mentions any of these:
+- **Standup**, **daily standup**, **standup summary**, or **standup report**
+- **What did I do yesterday**, **daily summary**, or **daily update**
+- Generating a **standup** or **daily** for Teams/Slack
+
+### Link PRs
+
+Route to the **Link PRs** workflow if the request mentions any of these:
+- **Link PRs**, **link pull requests**, **unlinked PRs**, or **orphan PRs**
+- **Connect PRs to work items**, **link my PRs**, or **PR linking**
+- Finding **unlinked** or **orphaned** pull requests
+
+### Morning
+
+Route to the **Morning** workflow if the request mentions any of these:
+- **Morning**, **morning briefing**, **morning summary**, or **daily briefing**
+- **What should I work on**, **daily overview**, or **today's priorities**
+- **Review queue**, **what needs my attention**, or **overnight changes**
+
+### Standup vs Morning Overlap
+
+"Daily summary" could match either Standup or Morning. Use this rule:
+- If the request focuses on **what I did** or **generating a standup** -> Standup
+- If the request focuses on **what I should do next** or **what needs my attention** -> Morning
+- If truly ambiguous, default to **Morning** (it is a superset that includes yesterday's activity)
+
 ### Ambiguous Requests
 
 If the request could match multiple domains (e.g., "show #42" could be a work item or a PR), ask the user to clarify:
@@ -68,7 +99,7 @@ If the request could match multiple domains (e.g., "show #42" could be a work it
 
 If the request does not match any domain, say:
 
-> "I'm not sure what you're looking for. I can help with **work items**, **pull requests**, or **pipelines**. Could you tell me which one?"
+> "I'm not sure what you're looking for. I can help with **work items**, **pull requests**, **pipelines**, **sprint updates**, **standups**, **PR linking**, or **morning briefings**. Could you tell me which one?"
 
 ---
 
@@ -123,3 +154,33 @@ Once classified as a sprint update request, follow the full instructions in the 
 Use `{ORG}`, `{WORK_ITEM_PROJECT}`, and `{PR_PROJECT}` from the loaded config.
 
 Refer to the `adoflow:sprint-update` command for the full workflow: detect current sprint, fetch active work items, cross-reference with merged PRs, auto-classify items, bulk-confirm state changes, add progress comments, flag blockers, and link orphaned PRs.
+
+---
+
+## Standup Workflow
+
+Once classified as a standup request, follow the full instructions in the `adoflow:standup` command to handle the request.
+
+Use `{ORG}`, `{WORK_ITEM_PROJECT}`, and `{PR_PROJECT}` from the loaded config.
+
+Refer to the `adoflow:standup` command for the full workflow: fetch work items changed in last 24h, fetch PRs created/reviewed, generate a copy-paste-ready standup for Teams/Slack.
+
+---
+
+## Link PRs Workflow
+
+Once classified as a link-PRs request, follow the full instructions in the `adoflow:link-prs` command to handle the request.
+
+Use `{ORG}`, `{WORK_ITEM_PROJECT}`, and `{PR_PROJECT}` from the loaded config.
+
+Refer to the `adoflow:link-prs` command for the full workflow: fetch sprint work items with PR links, fetch sprint PRs, match unlinked PRs to work items via branch names/titles/fuzzy matching, confirm and apply links.
+
+---
+
+## Morning Workflow
+
+Once classified as a morning request, follow the full instructions in the `adoflow:morning` command to handle the request.
+
+Use `{ORG}`, `{WORK_ITEM_PROJECT}`, and `{PR_PROJECT}` from the loaded config.
+
+Refer to the `adoflow:morning` command for the full workflow: fetch review queue, your PR status, sprint progress, pipeline builds, and generate prioritized action items.

@@ -10,13 +10,16 @@ Manage Azure DevOps work items, pull requests, and pipelines using natural langu
 
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| `/adoflow` | Smart entry point — describe what you need and it routes automatically |
-| `/adoflow:workitems` | Create, list, query, update, and manage work items |
-| `/adoflow:prs` | Create, list, review, vote on, and manage pull requests |
-| `/adoflow:pipelines` | Run, list, monitor, and manage pipelines and builds |
-| `/adoflow:sprint-update` | Auto-classify sprint items via PR activity, bulk-confirm updates, and flag blockers |
+| Command | Description | Mode |
+|---------|-------------|------|
+| `/adoflow` | Smart entry point — describe what you need and it routes automatically | — |
+| `/adoflow:workitems` | Create, list, query, update, and manage work items | read/write |
+| `/adoflow:prs` | Create, list, review, vote on, and manage pull requests | read/write |
+| `/adoflow:pipelines` | Run, list, monitor, and manage pipelines and builds | read/write |
+| `/adoflow:sprint-update` | Auto-classify sprint items via PR activity, bulk-confirm updates, and flag blockers | read/write |
+| `/adoflow:standup` | Generate a daily standup summary from your last 24h of Azure DevOps activity | read-only |
+| `/adoflow:link-prs` | Find unlinked PRs in the current sprint and link them to matching work items | read/write |
+| `/adoflow:morning` | Morning briefing — review queue, PR status, sprint progress, pipelines, action items | read-only |
 
 > **Tip:** If you don't know which command to use, just type `/adoflow` followed by what you want. It will figure out the rest.
 
@@ -106,6 +109,59 @@ Configuration is stored at `~/.config/ado-flow/config.json`:
 ```
 
 The `user_id`, `user_email`, and `sprint_cache` keys are auto-detected and cached on first run of `/adoflow:sprint-update`. To reconfigure, delete the file and run any `/adoflow` command.
+
+## Standup Examples
+
+```
+/adoflow:standup
+/adoflow:standup generate my standup
+```
+
+Generates a copy-paste-ready standup for Teams/Slack:
+
+1. **Yesterday** — work items changed + PRs created/merged/reviewed in last 24h
+2. **Today** — current sprint items in Active/In Progress state
+3. **Blockers** — stale items (14+ days) or tagged "Blocked"
+
+Read-only. 5 API calls (4 on cached runs). Under 30 seconds.
+
+## Link PRs Examples
+
+```
+/adoflow:link-prs
+/adoflow:link-prs link unlinked PRs
+```
+
+Finds PRs not linked to any work item and matches them:
+
+1. **Confident matches** — branch name contains work item ID, or PR title/description mentions it
+2. **Fuzzy matches** — PR title shares 30%+ significant words with a work item title (requires individual confirmation)
+3. **No match** — listed for awareness
+
+Bulk-link all confident matches with one confirmation. Read/write — requires `vso.code_write` + `vso.work_write`. 6 API calls (5 on cached runs) + 1 per confirmed link. Under 30 seconds for data collection.
+
+## Morning Briefing Examples
+
+```
+/adoflow:morning
+/adoflow:morning what should I work on
+```
+
+One-stop morning overview combining:
+
+1. **Review queue** — PRs waiting for your review, sorted oldest-first (3+ days flagged)
+2. **Your PRs** — status of your active PRs (approvals, changes requested, ready to merge)
+3. **Sprint progress** — item counts by state with progress bar
+4. **Pipelines** — recent build results with pass/fail emoji indicators
+5. **Action items** — prioritized list of what to do first
+
+Read-only. 6 API calls (5 on cached runs). Under 45 seconds.
+
+## Caching
+
+The `user_id` and `user_email` fields are resolved once via the Azure DevOps `connectionData` API and cached in `~/.config/ado-flow/config.json`. Subsequent runs skip this call (saving 1 API call). The sprint iteration path is computed from today's date and is never cached — it is always correct for the current month.
+
+To force a fresh identity lookup, delete `user_id` and `user_email` from the config file.
 
 ## Known Limitations
 
