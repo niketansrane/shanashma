@@ -30,6 +30,10 @@ Finds PRs in the current sprint that are not linked to any work item, matches th
 8. **connectionData API requires `api-version=7.1-preview`** (not `7.1`).
 9. **Clean up temp files** at the end: `rm -f "$HOME"/ado-flow-tmp-*.json "$HOME"/ado-flow-tmp-*.js 2>/dev/null`
 10. **Never loop through PRs to fetch linked work items.** The batch API `$expand=Relations` provides all PR links in one call.
+11. **Always include `--headers "Content-Type=application/json"` on every `az rest --method post` call.** Without it, Azure DevOps returns HTTP 400 (`VssRequestContentTypeNotSupportedException`).
+12. **Never embed iteration paths with backslashes in `node -e` strings.** Write WIQL/batch body generation to a `.js` file. Construct paths using `String.fromCharCode(92)` for the backslash separator. Same for any JSON key containing `$` (like `$expand`) — use `.js` files to avoid shell variable expansion.
+13. **If `--body @"$HOME/..."` fails on Windows,** use `--body @"$(cygpath -w "$HOME/ado-flow-tmp-{name}.json")"` to convert to a Windows-native path.
+14. **After each `az rest` call writing to a file, verify the file is non-empty.** If 0 bytes, re-run without `2>/dev/null` to diagnose.
 
 ---
 
@@ -108,12 +112,19 @@ Store: `{CURRENT_ITERATION}`, `{SPRINT_START}`, `{SPRINT_END}`.
 
 ### 2a: WIQL Query — Sprint Items (1 call)
 
+Write `$HOME/ado-flow-tmp-wiql-gen.js`:
+
+```javascript
+// $HOME/ado-flow-tmp-wiql-gen.js
+const fs = require('fs'), os = require('os'), p = require('path');
+const bs = String.fromCharCode(92); // backslash
+const iterPath = ['{WI_PROJECT}','{YEAR}','H{HALF}','Q{QUARTER}','{MONTH_NAME}'].join(bs);
+const query = `SELECT [System.Id] FROM workitems WHERE [System.AssignedTo] = @me AND [System.IterationPath] = '${iterPath}' ORDER BY [System.WorkItemType] ASC`;
+fs.writeFileSync(p.join(os.homedir(), 'ado-flow-tmp-wiql-body.json'), JSON.stringify({ query }));
+```
+
 ```bash
-node -e "
-const fs=require('fs'), os=require('os'), p=require('path');
-fs.writeFileSync(p.join(os.homedir(),'ado-flow-tmp-wiql-body.json'),
-  JSON.stringify({query: \"SELECT [System.Id] FROM workitems WHERE [System.AssignedTo] = @me AND [System.IterationPath] = '{CURRENT_ITERATION}' ORDER BY [System.WorkItemType] ASC\"}));
-"
+node "$HOME/ado-flow-tmp-wiql-gen.js"
 ```
 
 Note: Include ALL states (not just active) — we want to link PRs to resolved items too.
@@ -122,6 +133,7 @@ Note: Include ALL states (not just active) — we want to link PRs to resolved i
 az rest --method post \
   --url "https://dev.azure.com/{ORG}/{WI_PROJECT}/_apis/wit/wiql?api-version=7.1" \
   --resource "499b84ac-1321-427f-aa17-267ca6975798" \
+  --headers "Content-Type=application/json" \
   --body "@$HOME/ado-flow-tmp-wiql-body.json" \
   -o json 2>/dev/null > "$HOME/ado-flow-tmp-wiql.json"
 ```
@@ -132,21 +144,29 @@ If 0 results, output "No items in `{CURRENT_ITERATION}`. Nothing to link." and s
 
 **Use `$expand=Relations` ONLY — do not include `fields`.**
 
+Write `$HOME/ado-flow-tmp-batch-gen.js`:
+
+```javascript
+// $HOME/ado-flow-tmp-batch-gen.js
+const fs = require('fs'), os = require('os'), p = require('path');
+const wiql = JSON.parse(fs.readFileSync(p.join(os.homedir(), 'ado-flow-tmp-wiql.json'), 'utf8'));
+const ids = wiql.workItems.map(w => w.id);
+console.log('Sprint items: ' + ids.length);
+if (ids.length === 0) { process.exit(0); }
+const body = { ids };
+body['$expand'] = 'Relations';
+fs.writeFileSync(p.join(os.homedir(), 'ado-flow-tmp-batch-body.json'), JSON.stringify(body));
+```
+
 ```bash
-node -e "
-const fs=require('fs'), os=require('os'), p=require('path');
-const wiql=JSON.parse(fs.readFileSync(p.join(os.homedir(),'ado-flow-tmp-wiql.json'),'utf8'));
-const ids=wiql.workItems.map(w=>w.id);
-console.log('Sprint items: '+ids.length);
-fs.writeFileSync(p.join(os.homedir(),'ado-flow-tmp-batch-body.json'),
-  JSON.stringify({ids: ids, '\$expand': 'Relations'}));
-"
+node "$HOME/ado-flow-tmp-batch-gen.js"
 ```
 
 ```bash
 az rest --method post \
   --url "https://dev.azure.com/{ORG}/{WI_PROJECT}/_apis/wit/workitemsbatch?api-version=7.1" \
   --resource "499b84ac-1321-427f-aa17-267ca6975798" \
+  --headers "Content-Type=application/json" \
   --body "@$HOME/ado-flow-tmp-batch-body.json" \
   -o json 2>/dev/null > "$HOME/ado-flow-tmp-batch.json"
 ```
