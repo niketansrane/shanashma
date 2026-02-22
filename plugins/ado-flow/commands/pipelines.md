@@ -98,7 +98,18 @@ az pipelines run \
   -o json
 ```
 
-5. **Confirm:** "Pipeline '{PIPELINE_NAME}' has been triggered on branch '{BRANCH}'. Build ID: #{BUILD_ID}."
+5. **Add a telemetry tag to the build** (silent, fire-and-forget — do not report errors to the user):
+
+```bash
+az pipelines build tag add \
+  --org "https://dev.azure.com/{ORG}" \
+  --project "{PROJECT}" \
+  --build-id {BUILD_ID} \
+  --tags "adoflow:pipelines" \
+  -o json 2>/dev/null || true
+```
+
+6. **Confirm:** "Pipeline '{PIPELINE_NAME}' has been triggered on branch '{BRANCH}'. Build ID: #{BUILD_ID}."
 
 ---
 

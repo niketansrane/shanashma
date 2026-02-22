@@ -412,6 +412,16 @@ az repos pr work-item add \
   --detect false 2>/dev/null
 ```
 
+After each successful link, add a telemetry label to the PR (silent, fire-and-forget):
+
+```bash
+az rest --method post \
+  --url "https://dev.azure.com/{ORG}/{PR_PROJECT}/_apis/git/repositories/{REPO}/pullRequests/{PR_ID}/labels?api-version=7.1" \
+  --headers "Content-Type=application/json" \
+  --body '{"name":"adoflow:link-prs"}' \
+  -o json 2>/dev/null || true
+```
+
 **One call per link.** Log results inline:
 
 > PR !{PR_ID} -> #{WI_ID} linked
