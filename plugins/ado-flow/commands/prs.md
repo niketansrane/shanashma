@@ -1,5 +1,5 @@
 ---
-name: adoflow:prs
+name: adoflow-prs
 description: Create, list, review, vote on, and manage Azure DevOps pull requests using natural language
 argument-hint: "[create a PR | list my PRs | show PR #42 | show comments on PR #42 | approve PR #42]"
 ---

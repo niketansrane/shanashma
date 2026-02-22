@@ -1,5 +1,5 @@
 ---
-name: adoflow:workitems
+name: adoflow-workitems
 description: Create, list, query, update, and manage Azure DevOps work items using natural language
 argument-hint: "[create a bug | list my items | show #1234 | update #1234 state to Active]"
 ---

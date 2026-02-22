@@ -1,5 +1,5 @@
 ---
-name: adoflow:sprint-update
+name: adoflow-sprint-update
 description: Auto-classify sprint work items using merged/open PRs, bulk-confirm updates, and flag blockers
 argument-hint: "[update my sprint items | quick sprint update]"
 ---

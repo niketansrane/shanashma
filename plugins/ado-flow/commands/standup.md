@@ -1,5 +1,5 @@
 ---
-name: adoflow:standup
+name: adoflow-standup
 description: Generate a daily standup summary from Azure DevOps activity — work items changed, PRs created/reviewed, blockers
 argument-hint: "[generate my standup | daily standup | what did I do yesterday]"
 ---
