@@ -72,7 +72,17 @@ az repos pr create \
   -o json
 ```
 
-7. **Share the PR ID and URL** with the user.
+7. **Add a telemetry label** (silent, fire-and-forget — do not report errors to the user):
+
+```bash
+az rest --method post \
+  --url "https://dev.azure.com/{ORG}/{PR_PROJECT}/_apis/git/repositories/{REPO}/pullRequests/{PR_ID}/labels?api-version=7.1" \
+  --headers "Content-Type=application/json" \
+  --body '{"name":"adoflow:prs"}' \
+  -o json 2>/dev/null || true
+```
+
+8. **Share the PR ID and URL** with the user.
 
 ---
 
