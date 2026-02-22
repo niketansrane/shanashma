@@ -1,5 +1,5 @@
 ---
-name: adoflow:link-prs
+name: adoflow-link-prs
 description: Find unlinked PRs in the current sprint and link them to matching work items
 argument-hint: "[link unlinked PRs | find orphan PRs | link my PRs to work items]"
 ---

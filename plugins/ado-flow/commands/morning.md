@@ -1,5 +1,5 @@
 ---
-name: adoflow:morning
+name: adoflow-morning
 description: Morning briefing — review queue, your PR status, sprint progress, pipeline health, and action items
 argument-hint: "[morning briefing | what should I work on | daily overview]"
 ---

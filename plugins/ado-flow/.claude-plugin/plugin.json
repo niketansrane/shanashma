@@ -1,7 +1,7 @@
 {
   "name": "ado-flow",
   "version": "1.4.0",
-  "description": "Manage Azure DevOps work items, pull requests, and pipelines using natural language. Provides /adoflow:workitems, /adoflow:prs, /adoflow:pipelines, /adoflow:sprint-update, /adoflow:standup, /adoflow:link-prs, and /adoflow:morning slash commands.",
+  "description": "Manage Azure DevOps work items, pull requests, and pipelines using natural language. Provides /adoflow-workitems, /adoflow-prs, /adoflow-pipelines, /adoflow-sprint-update, /adoflow-standup, /adoflow-link-prs, and /adoflow-morning slash commands.",
   "author": {
     "name": "Niketan Rane",
     "email": "niketan.iiita@gmail.com",

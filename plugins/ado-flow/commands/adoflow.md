@@ -119,68 +119,68 @@ If no config exists, follow the `ado-flow` skill to run first-time setup.
 
 ## Work Items Workflow
 
-Once classified as a work item request, follow the full instructions in the `adoflow:workitems` command to handle the request.
+Once classified as a work item request, follow the full instructions in the `adoflow-workitems` command to handle the request.
 
 Use `{ORG}` and `{WORK_ITEM_PROJECT}` from the loaded config.
 
-Refer to the `adoflow:workitems` command for all work item workflows: create, list, get details, update, delete, query, and manage relations.
+Refer to the `adoflow-workitems` command for all work item workflows: create, list, get details, update, delete, query, and manage relations.
 
 ---
 
 ## Pull Requests Workflow
 
-Once classified as a pull request request, follow the full instructions in the `adoflow:prs` command to handle the request.
+Once classified as a pull request request, follow the full instructions in the `adoflow-prs` command to handle the request.
 
 Use `{ORG}` and `{PR_PROJECT}` from the loaded config.
 
-Refer to the `adoflow:prs` command for all PR workflows: create, list, get details, vote, show comments, manage reviewers, link work items, update, check policies, and checkout.
+Refer to the `adoflow-prs` command for all PR workflows: create, list, get details, vote, show comments, manage reviewers, link work items, update, check policies, and checkout.
 
 ---
 
 ## Pipelines Workflow
 
-Once classified as a pipeline request, follow the full instructions in the `adoflow:pipelines` command to handle the request.
+Once classified as a pipeline request, follow the full instructions in the `adoflow-pipelines` command to handle the request.
 
 Use `{ORG}` and `{WORK_ITEM_PROJECT}` (as the default project) from the loaded config.
 
-Refer to the `adoflow:pipelines` command for all pipeline workflows: list, run, show details, list builds, show build details, cancel, list runs, show run details, list artifacts, download artifacts, manage tags, and list variables.
+Refer to the `adoflow-pipelines` command for all pipeline workflows: list, run, show details, list builds, show build details, cancel, list runs, show run details, list artifacts, download artifacts, manage tags, and list variables.
 
 ---
 
 ## Sprint Update Workflow
 
-Once classified as a sprint update request, follow the full instructions in the `adoflow:sprint-update` command to handle the request.
+Once classified as a sprint update request, follow the full instructions in the `adoflow-sprint-update` command to handle the request.
 
 Use `{ORG}`, `{WORK_ITEM_PROJECT}`, and `{PR_PROJECT}` from the loaded config.
 
-Refer to the `adoflow:sprint-update` command for the full workflow: detect current sprint, fetch active work items, cross-reference with merged PRs, auto-classify items, bulk-confirm state changes, add progress comments, flag blockers, and link orphaned PRs.
+Refer to the `adoflow-sprint-update` command for the full workflow: detect current sprint, fetch active work items, cross-reference with merged PRs, auto-classify items, bulk-confirm state changes, add progress comments, flag blockers, and link orphaned PRs.
 
 ---
 
 ## Standup Workflow
 
-Once classified as a standup request, follow the full instructions in the `adoflow:standup` command to handle the request.
+Once classified as a standup request, follow the full instructions in the `adoflow-standup` command to handle the request.
 
 Use `{ORG}`, `{WORK_ITEM_PROJECT}`, and `{PR_PROJECT}` from the loaded config.
 
-Refer to the `adoflow:standup` command for the full workflow: fetch work items changed in last 24h, fetch PRs created/reviewed, generate a copy-paste-ready standup for Teams/Slack.
+Refer to the `adoflow-standup` command for the full workflow: fetch work items changed in last 24h, fetch PRs created/reviewed, generate a copy-paste-ready standup for Teams/Slack.
 
 ---
 
 ## Link PRs Workflow
 
-Once classified as a link-PRs request, follow the full instructions in the `adoflow:link-prs` command to handle the request.
+Once classified as a link-PRs request, follow the full instructions in the `adoflow-link-prs` command to handle the request.
 
 Use `{ORG}`, `{WORK_ITEM_PROJECT}`, and `{PR_PROJECT}` from the loaded config.
 
-Refer to the `adoflow:link-prs` command for the full workflow: fetch sprint work items with PR links, fetch sprint PRs, match unlinked PRs to work items via branch names/titles/fuzzy matching, confirm and apply links.
+Refer to the `adoflow-link-prs` command for the full workflow: fetch sprint work items with PR links, fetch sprint PRs, match unlinked PRs to work items via branch names/titles/fuzzy matching, confirm and apply links.
 
 ---
 
 ## Morning Workflow
 
-Once classified as a morning request, follow the full instructions in the `adoflow:morning` command to handle the request.
+Once classified as a morning request, follow the full instructions in the `adoflow-morning` command to handle the request.
 
 Use `{ORG}`, `{WORK_ITEM_PROJECT}`, and `{PR_PROJECT}` from the loaded config.
 
-Refer to the `adoflow:morning` command for the full workflow: fetch review queue, your PR status, sprint progress, pipeline builds, and generate prioritized action items.
+Refer to the `adoflow-morning` command for the full workflow: fetch review queue, your PR status, sprint progress, pipeline builds, and generate prioritized action items.

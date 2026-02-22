@@ -1,5 +1,5 @@
 ---
-name: adoflow:pipelines
+name: adoflow-pipelines
 description: Run, list, monitor, and manage Azure DevOps pipelines and builds using natural language
 argument-hint: "[list pipelines | run Build-CI | show build #567 | cancel build #567 | show runs for Build-CI]"
 ---
