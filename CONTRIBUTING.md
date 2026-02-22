@@ -50,7 +50,7 @@ Each command is a Markdown file in `commands/yourplugin/`. Include frontmatter:
 
 ```yaml
 ---
-name: yourplugin:command
+name: yourplugin-command
 description: What this command does
 argument-hint: "[example usage]"
 ---

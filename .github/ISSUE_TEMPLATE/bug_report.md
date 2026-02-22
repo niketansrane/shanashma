@@ -7,7 +7,7 @@ labels: bug
 
 **Plugin:** (e.g., ado-flow)
 
-**Command:** (e.g., /adoflow:workitems)
+**Command:** (e.g., /adoflow-workitems)
 
 **What happened:**
 

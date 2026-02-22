@@ -13,13 +13,13 @@ Manage Azure DevOps work items, pull requests, and pipelines using natural langu
 | Command | Description | Mode |
 |---------|-------------|------|
 | `/adoflow` | Smart entry point — describe what you need and it routes automatically | — |
-| `/adoflow:workitems` | Create, list, query, update, and manage work items | read/write |
-| `/adoflow:prs` | Create, list, review, vote on, and manage pull requests | read/write |
-| `/adoflow:pipelines` | Run, list, monitor, and manage pipelines and builds | read/write |
-| `/adoflow:sprint-update` | Auto-classify sprint items via PR activity, bulk-confirm updates, and flag blockers | read/write |
-| `/adoflow:standup` | Generate a daily standup summary from your last 24h of Azure DevOps activity | read-only |
-| `/adoflow:link-prs` | Find unlinked PRs in the current sprint and link them to matching work items | read/write |
-| `/adoflow:morning` | Morning briefing — review queue, PR status, sprint progress, pipelines, action items | read-only |
+| `/adoflow-workitems` | Create, list, query, update, and manage work items | read/write |
+| `/adoflow-prs` | Create, list, review, vote on, and manage pull requests | read/write |
+| `/adoflow-pipelines` | Run, list, monitor, and manage pipelines and builds | read/write |
+| `/adoflow-sprint-update` | Auto-classify sprint items via PR activity, bulk-confirm updates, and flag blockers | read/write |
+| `/adoflow-standup` | Generate a daily standup summary from your last 24h of Azure DevOps activity | read-only |
+| `/adoflow-link-prs` | Find unlinked PRs in the current sprint and link them to matching work items | read/write |
+| `/adoflow-morning` | Morning briefing — review queue, PR status, sprint progress, pipelines, action items | read-only |
 
 > **Tip:** If you don't know which command to use, just type `/adoflow` followed by what you want. It will figure out the rest.
 
@@ -35,10 +35,10 @@ Manage Azure DevOps work items, pull requests, and pipelines using natural langu
 Or use the specific commands directly:
 
 ```
-/adoflow:workitems create a bug for login page crash
-/adoflow:prs list my PRs
-/adoflow:pipelines run Build-CI on main
-/adoflow:sprint-update
+/adoflow-workitems create a bug for login page crash
+/adoflow-prs list my PRs
+/adoflow-pipelines run Build-CI on main
+/adoflow-sprint-update
 ```
 
 On first use, you'll be prompted for your Azure DevOps organization and project names. Configuration is saved to `~/.config/ado-flow/config.json` and reused automatically.
@@ -46,10 +46,10 @@ On first use, you'll be prompted for your Azure DevOps organization and project 
 ## Work Items Examples
 
 ```
-/adoflow:workitems create a task for implementing dark mode
-/adoflow:workitems list my items
-/adoflow:workitems show #1234
-/adoflow:workitems update #1234 state to Active
+/adoflow-workitems create a task for implementing dark mode
+/adoflow-workitems list my items
+/adoflow-workitems show #1234
+/adoflow-workitems update #1234 state to Active
 ```
 
 Supports all work item types available in your project (Bug, Task, User Story, Feature, Epic, etc.). Area path and iteration path are detected automatically from your recent work.
@@ -57,12 +57,12 @@ Supports all work item types available in your project (Bug, Task, User Story, F
 ## Pull Requests Examples
 
 ```
-/adoflow:prs create a PR
-/adoflow:prs list my PRs
-/adoflow:prs show PR #42
-/adoflow:prs show comments on PR #42
-/adoflow:prs approve PR #42
-/adoflow:prs add reviewer user@example.com to PR #42
+/adoflow-prs create a PR
+/adoflow-prs list my PRs
+/adoflow-prs show PR #42
+/adoflow-prs show comments on PR #42
+/adoflow-prs approve PR #42
+/adoflow-prs add reviewer user@example.com to PR #42
 ```
 
 Source branch defaults to your current git branch. Target branch defaults to `main`.
@@ -70,18 +70,18 @@ Source branch defaults to your current git branch. Target branch defaults to `ma
 ## Pipelines Examples
 
 ```
-/adoflow:pipelines list pipelines
-/adoflow:pipelines run Build-CI on main
-/adoflow:pipelines show build #567
-/adoflow:pipelines cancel build #567
-/adoflow:pipelines show runs for Build-CI
+/adoflow-pipelines list pipelines
+/adoflow-pipelines run Build-CI on main
+/adoflow-pipelines show build #567
+/adoflow-pipelines cancel build #567
+/adoflow-pipelines show runs for Build-CI
 ```
 
 ## Sprint Update Examples
 
 ```
-/adoflow:sprint-update
-/adoflow:sprint-update quick sprint update
+/adoflow-sprint-update
+/adoflow-sprint-update quick sprint update
 ```
 
 Auto-classifies your sprint items and presents a plan you confirm in one step:
@@ -108,13 +108,13 @@ Configuration is stored at `~/.config/ado-flow/config.json`:
 }
 ```
 
-The `user_id`, `user_email`, and `sprint_cache` keys are auto-detected and cached on first run of `/adoflow:sprint-update`. To reconfigure, delete the file and run any `/adoflow` command.
+The `user_id`, `user_email`, and `sprint_cache` keys are auto-detected and cached on first run of `/adoflow-sprint-update`. To reconfigure, delete the file and run any `/adoflow` command.
 
 ## Standup Examples
 
 ```
-/adoflow:standup
-/adoflow:standup generate my standup
+/adoflow-standup
+/adoflow-standup generate my standup
 ```
 
 Generates a copy-paste-ready standup for Teams/Slack:
@@ -128,8 +128,8 @@ Read-only. 5 API calls (4 on cached runs). Under 30 seconds.
 ## Link PRs Examples
 
 ```
-/adoflow:link-prs
-/adoflow:link-prs link unlinked PRs
+/adoflow-link-prs
+/adoflow-link-prs link unlinked PRs
 ```
 
 Finds PRs not linked to any work item and matches them:
@@ -143,8 +143,8 @@ Bulk-link all confident matches with one confirmation. Read/write — requires `
 ## Morning Briefing Examples
 
 ```
-/adoflow:morning
-/adoflow:morning what should I work on
+/adoflow-morning
+/adoflow-morning what should I work on
 ```
 
 One-stop morning overview combining:

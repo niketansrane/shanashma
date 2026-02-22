@@ -5,11 +5,11 @@ description: This skill should be used when working with Azure DevOps work items
 
 # Azure DevOps - Shared Setup & Configuration
 
-This is the shared foundation for all `adoflow:*` commands. It handles first-time setup, configuration persistence, and common detection logic.
+This is the shared foundation for all `adoflow-*` commands. It handles first-time setup, configuration persistence, and common detection logic.
 
 ## First-Time Setup
 
-On every invocation of any `adoflow:*` command, check whether saved configuration exists before doing anything else.
+On every invocation of any `adoflow-*` command, check whether saved configuration exists before doing anything else.
 
 ### Step 1: Load Saved Configuration
 
