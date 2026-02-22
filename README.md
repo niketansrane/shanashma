@@ -6,6 +6,20 @@
 
 *Shanashma (शनश्म) — whetstone, in Sanskrit. A whetstone is an abrasive stone used to sharpen the edges of knives. The plugins marketplace here is supposed to sharpen the tools you already use. Starting with Claude Code plugins for Azure DevOps for now.*
 
+## How it looks
+
+<p align="center">
+  <img src="assets/ado-flow-screenshot.png" alt="ado-flow commands in Claude Code" width="800">
+</p>
+
+### Sprint Update in action
+
+Run `/adoflow-sprint-update` and it auto-classifies every item in your sprint, flags stale work, detects unlinked PRs, and lets you bulk-confirm updates in one step:
+
+<p align="center">
+  <img src="assets/ado-sprint-update.png" alt="Sprint update output showing classified work items and action menu" width="800">
+</p>
+
 ## Install
 
 Run these two commands **in order** inside Claude Code:
@@ -24,14 +38,6 @@ Run these two commands **in order** inside Claude Code:
 
 > **Note:** Both steps are required. Step 1 registers the marketplace, Step 2 installs the plugin from it. Run them sequentially — Step 2 will fail if Step 1 hasn't completed.
 
-## Usage
-
-After installing, invoke the plugin explicitly using `/adoflow`:
-
-```bash
-/adoflow create a bug for login page crash
-```
-
 ## What You Get
 
 | Command | What it does |
@@ -42,12 +48,6 @@ After installing, invoke the plugin explicitly using `/adoflow`:
 | `/adoflow-pipelines` | Run, list, and monitor pipelines and builds |
 
 > **Tip:** You don't need to pick a specific command. Just use `/adoflow` and describe what you want — it will route to the right place automatically.
-
-### How it looks
-
-<p align="center">
-  <img src="assets/ado-flow-screenshot.png" alt="ado-flow commands in Claude Code" width="800">
-</p>
 
 ## Examples
 
@@ -78,14 +78,6 @@ Or use the specific commands if you prefer:
 /adoflow-pipelines run Build-CI on main
 /adoflow-pipelines show build #567
 ```
-
-### Sprint Update in action
-
-Run `/adoflow-sprint-update` and it auto-classifies every item in your sprint, flags stale work, detects unlinked PRs, and lets you bulk-confirm updates in one step:
-
-<p align="center">
-  <img src="assets/ado-sprint-update.png" alt="Sprint update output showing classified work items and action menu" width="800">
-</p>
 
 First-time setup will ask for your Azure DevOps organization and project. Configuration is saved to `~/.config/ado-flow/config.json`.
 
