@@ -79,6 +79,14 @@ Or use the specific commands if you prefer:
 /adoflow:pipelines show build #567
 ```
 
+### Sprint Update in action
+
+Run `/adoflow-sprint-update` and it auto-classifies every item in your sprint, flags stale work, detects unlinked PRs, and lets you bulk-confirm updates in one step:
+
+<p align="center">
+  <img src="assets/ado-sprint-update.png" alt="Sprint update output showing classified work items and action menu" width="800">
+</p>
+
 First-time setup will ask for your Azure DevOps organization and project. Configuration is saved to `~/.config/ado-flow/config.json`.
 
 ## Contributing
