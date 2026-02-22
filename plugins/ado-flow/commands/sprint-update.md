@@ -10,7 +10,7 @@ Auto-classifies work items by PR activity, bulk-confirms, walks through only amb
 
 ## Arguments
 
-<user_request> $ARGUMENTS </user_request>
+$ARGUMENTS
 
 **If empty, proceed with default workflow.**
 

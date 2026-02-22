@@ -10,7 +10,7 @@ Manage pull requests in Azure DevOps: create, list, review, vote, manage reviewe
 
 ## Arguments
 
-<user_request> $ARGUMENTS </user_request>
+$ARGUMENTS
 
 **If the request above is empty, ask the user:** "What would you like to do with pull requests? For example: create a PR, list my PRs, show PR #42, show comments, or approve a PR."
 

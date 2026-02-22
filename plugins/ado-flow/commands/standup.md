@@ -10,7 +10,7 @@ Generates a copy-paste-ready standup from your last 24 hours of Azure DevOps act
 
 ## Arguments
 
-<user_request> $ARGUMENTS </user_request>
+$ARGUMENTS
 
 **If empty, proceed with default workflow.**
 
