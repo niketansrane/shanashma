@@ -10,7 +10,7 @@ Combines your review queue, PR status, sprint progress, pipeline health, and pri
 
 ## Arguments
 
-<user_request> $ARGUMENTS </user_request>
+$ARGUMENTS
 
 **If empty, proceed with default workflow.**
 

@@ -12,7 +12,7 @@ Finds PRs in the current sprint that are not linked to any work item, matches th
 
 ## Arguments
 
-<user_request> $ARGUMENTS </user_request>
+$ARGUMENTS
 
 **If empty, proceed with default workflow.**
 
