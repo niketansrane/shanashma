@@ -37,9 +37,9 @@ After installing, invoke the plugin explicitly using `/adoflow`:
 | Command | What it does |
 |---------|-------------|
 | `/adoflow` | Smart entry point — just describe what you need |
-| `/adoflow:workitems` | Create, list, query, and update work items |
-| `/adoflow:prs` | Create, list, review, and manage pull requests |
-| `/adoflow:pipelines` | Run, list, and monitor pipelines and builds |
+| `/adoflow-workitems` | Create, list, query, and update work items |
+| `/adoflow-prs` | Create, list, review, and manage pull requests |
+| `/adoflow-pipelines` | Run, list, and monitor pipelines and builds |
 
 > **Tip:** You don't need to pick a specific command. Just use `/adoflow` and describe what you want — it will route to the right place automatically.
 
@@ -61,22 +61,22 @@ After installing, invoke the plugin explicitly using `/adoflow`:
 Or use the specific commands if you prefer:
 
 ```bash
-/adoflow:workitems create a bug for login page crash
-/adoflow:workitems list my items
-/adoflow:workitems show #1234
+/adoflow-workitems create a bug for login page crash
+/adoflow-workitems list my items
+/adoflow-workitems show #1234
 ```
 
 ```bash
-/adoflow:prs create a PR
-/adoflow:prs list my PRs
-/adoflow:prs show comments on PR #42
-/adoflow:prs approve PR #42
+/adoflow-prs create a PR
+/adoflow-prs list my PRs
+/adoflow-prs show comments on PR #42
+/adoflow-prs approve PR #42
 ```
 
 ```bash
-/adoflow:pipelines list pipelines
-/adoflow:pipelines run Build-CI on main
-/adoflow:pipelines show build #567
+/adoflow-pipelines list pipelines
+/adoflow-pipelines run Build-CI on main
+/adoflow-pipelines show build #567
 ```
 
 First-time setup will ask for your Azure DevOps organization and project. Configuration is saved to `~/.config/ado-flow/config.json`.

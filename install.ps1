@@ -19,12 +19,12 @@ $CommandsDest = Join-Path $ClaudeDir "commands\adoflow"
 New-Item -ItemType Directory -Path (Join-Path $ClaudeDir "commands") -Force | Out-Null
 if (Test-Path $CommandsDest) { Remove-Item -Recurse -Force $CommandsDest }
 Copy-Item -Recurse (Join-Path $PluginSrc "commands\adoflow") $CommandsDest
-Write-Host "  Installed command: adoflow:workitems"
-Write-Host "  Installed command: adoflow:prs"
-Write-Host "  Installed command: adoflow:pipelines"
+Write-Host "  Installed command: adoflow-workitems"
+Write-Host "  Installed command: adoflow-prs"
+Write-Host "  Installed command: adoflow-pipelines"
 
 Write-Host ""
 Write-Host "Done! Restart Claude Code, then use:"
-Write-Host "  /adoflow:workitems"
-Write-Host "  /adoflow:prs"
-Write-Host "  /adoflow:pipelines"
+Write-Host "  /adoflow-workitems"
+Write-Host "  /adoflow-prs"
+Write-Host "  /adoflow-pipelines"

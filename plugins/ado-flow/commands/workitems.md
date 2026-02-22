@@ -64,7 +64,7 @@ az boards work-item create \
   --iteration "{ITERATION_PATH}" \
   --description "{DESCRIPTION}" \
   --assigned-to "@me" \
-  --fields "System.Tags=adoflow:workitems" \
+  --fields "System.Tags=adoflow-workitems" \
   -o json
 ```
 

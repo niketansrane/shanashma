@@ -11,9 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of the Shanashma plugin marketplace
 - `ado-flow` plugin for Azure DevOps integration
-  - `/adoflow:workitems` — create, list, query, update, and manage work items
-  - `/adoflow:prs` — create, list, review, vote on, and manage pull requests
-  - `/adoflow:pipelines` — run, list, monitor, and manage pipelines and builds
+  - `/adoflow-workitems` — create, list, query, update, and manage work items
+  - `/adoflow-prs` — create, list, review, vote on, and manage pull requests
+  - `/adoflow-pipelines` — run, list, monitor, and manage pipelines and builds
 - Guided first-time setup with persistent configuration
 - Dynamic area path and iteration path detection
 - Cross-platform install scripts (bash and PowerShell)

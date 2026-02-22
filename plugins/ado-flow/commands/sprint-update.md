@@ -191,8 +191,8 @@ const mergedTags = {};
 for (const [id, fields] of Object.entries(workItems)) {
   const existing = (fields['System.Tags'] || '').trim();
   const existingTags = existing ? existing.split(/;\s*/) : [];
-  const hasTag = existingTags.some(t => t.trim() === 'adoflow:sprint-update');
-  mergedTags[id] = hasTag ? existing : (existing ? existing + '; adoflow:sprint-update' : 'adoflow:sprint-update');
+  const hasTag = existingTags.some(t => t.trim() === 'adoflow-sprint-update');
+  mergedTags[id] = hasTag ? existing : (existing ? existing + '; adoflow-sprint-update' : 'adoflow-sprint-update');
 }
 
 fs.writeFileSync(p.join(home, 'ado-flow-tmp-parsed.json'),
@@ -318,7 +318,7 @@ az boards work-item update \
   -o json 2>/dev/null
 ```
 
-Where `{MERGED_TAGS_FOR_ID}` = `mergedTags[{ID}]` from the parsed data (Phase 2c). This appends `adoflow:sprint-update` to any existing tags without overwriting them.
+Where `{MERGED_TAGS_FOR_ID}` = `mergedTags[{ID}]` from the parsed data (Phase 2c). This appends `adoflow-sprint-update` to any existing tags without overwriting them.
 
 **State transition safety:** If update fails with state transition error, try intermediate state first.
 

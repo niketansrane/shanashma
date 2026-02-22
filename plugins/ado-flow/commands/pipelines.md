@@ -105,7 +105,7 @@ az pipelines build tag add \
   --org "https://dev.azure.com/{ORG}" \
   --project "{PROJECT}" \
   --build-id {BUILD_ID} \
-  --tags "adoflow:pipelines" \
+  --tags "adoflow-pipelines" \
   -o json 2>/dev/null || true
 ```
 
