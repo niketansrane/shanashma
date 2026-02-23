@@ -1,12 +1,12 @@
 ---
 name: adoflow-morning
-description: Morning briefing — review queue, your PR status, sprint progress, pipeline health, and action items
+description: Morning briefing — review queue, your PR status, sprint progress, and action items
 argument-hint: "[morning briefing | what should I work on | daily overview]"
 ---
 
 # Azure DevOps Morning Briefing
 
-Combines your review queue, PR status, sprint progress, pipeline health, and prioritized action items into one view.
+Combines your review queue, PR status, sprint progress, and prioritized action items into one view.
 
 ## Arguments
 
@@ -55,7 +55,6 @@ Also check for cached: `user_id` (GUID), `user_email`.
 |-----|---------|
 | `_apis/wit/*` (WIQL, batch, work items) | `{WI_PROJECT}` |
 | `_apis/git/pullrequests` | `{PR_PROJECT}` |
-| `_apis/build/builds` | `{PR_PROJECT}` |
 
 **Never swap.** `{WI_PROJECT}` and `{PR_PROJECT}` may be different.
 
@@ -104,16 +103,6 @@ const sprintEnd = `${year}-${String(month+1).padStart(2,'0')}-${lastDay}`;
 ```
 
 Store: `{CURRENT_ITERATION}`, `{SPRINT_START}`, `{SPRINT_END}`.
-
-Compute yesterday's date for time filters:
-
-```javascript
-const yesterday = new Date();
-yesterday.setDate(yesterday.getDate() - 1);
-const minTime = yesterday.toISOString().split('T')[0] + 'T00:00:00Z';
-```
-
-Store: `{YESTERDAY_ISO}`.
 
 ---
 
@@ -202,22 +191,7 @@ az rest --method post \
 
 ---
 
-## Phase 4: Fetch Pipeline Builds (1 az call)
-
-### 4a: Recent Builds by Me (1 call)
-
-```bash
-az rest --method get \
-  --url "https://dev.azure.com/{ORG}/{PR_PROJECT}/_apis/build/builds?requestedFor={USER_EMAIL}&minTime={YESTERDAY_ISO}&\$top=10&api-version=7.1" \
-  --resource "499b84ac-1321-427f-aa17-267ca6975798" \
-  -o json 2>/dev/null > "$HOME/ado-flow-tmp-builds.json"
-```
-
-**Note:** Use `{USER_EMAIL}` for `requestedFor` (display name or email, not GUID). If that returns 0 results, the filter may need `requestedFor` as display name — log but don't fail.
-
----
-
-## Phase 5: Build and Present Briefing (0 az calls)
+## Phase 4: Build and Present Briefing (0 az calls)
 
 Write a .js file to parse all collected data and generate the briefing:
 
@@ -238,7 +212,6 @@ const userId = config.user_id;
 const reviewQueueRaw = readJson('ado-flow-tmp-review-queue.json');
 const myPrsRaw = readJson('ado-flow-tmp-my-prs.json');
 const batch = readJson('ado-flow-tmp-batch.json');
-const buildsRaw = readJson('ado-flow-tmp-builds.json');
 
 const now = new Date();
 const STALE_DAYS = 14;
@@ -290,9 +263,10 @@ if (myPrsRaw && myPrsRaw.value) {
 }
 
 // --- Sprint Progress: categorize by state ---
+// State check runs first: done items are always done, regardless of staleness.
+// Stale/blocked check only applies to non-done items.
 const doneStates = new Set(['Closed', 'Done', 'Resolved', 'Completed']);
 const activeStates = new Set(['Active', 'In Progress', 'Committed', 'Open']);
-const newStates = new Set(['New', 'To Do', 'Proposed']);
 let done = 0, inProgress = 0, notStarted = 0, needsAttention = 0, total = 0;
 const staleItems = [];
 if (batch && batch.value) {
@@ -302,14 +276,17 @@ if (batch && batch.value) {
     const state = f['System.State'];
     const tags = (f['System.Tags'] || '').toLowerCase();
     const stale = daysAgo(f['System.ChangedDate']) > STALE_DAYS;
-    if (stale || tags.includes('blocked')) {
+    if (doneStates.has(state)) {
+      done++;
+    } else if (stale || tags.includes('blocked')) {
       needsAttention++;
       staleItems.push({ id: wi.id, title: f['System.Title'],
         days: daysAgo(f['System.ChangedDate']), blocked: tags.includes('blocked') });
-    } else if (doneStates.has(state)) { done++; }
-    else if (activeStates.has(state)) { inProgress++; }
-    else if (newStates.has(state)) { notStarted++; }
-    else { notStarted++; }
+    } else if (activeStates.has(state)) {
+      inProgress++;
+    } else {
+      notStarted++;
+    }
   }
 }
 const pct = total > 0 ? Math.round(done / total * 100) : 0;
@@ -317,30 +294,10 @@ const barLen = 16;
 const filled = Math.round(pct / 100 * barLen);
 const progressBar = '\u2588'.repeat(filled) + '\u2591'.repeat(barLen - filled);
 
-// --- Pipelines: format results ---
-const pipelines = [];
-if (buildsRaw && buildsRaw.value) {
-  for (const b of buildsRaw.value) {
-    const emoji = b.result === 'succeeded' ? '\u2705' :
-                  b.result === 'failed' ? '\u274C' :
-                  b.result === 'partiallySucceeded' ? '\u26A0\uFE0F' :
-                  b.result === 'canceled' ? '\u23F9' :
-                  b.status === 'inProgress' ? '\u23F3' : '\u2753';
-    pipelines.push({ name: b.definition?.name || 'unknown', number: b.buildNumber,
-      emoji, result: b.result || b.status, branch: b.sourceBranch?.replace('refs/heads/', '').replace(/refs\/pull\/(\d+)\/merge/, 'PR #$1') || '',
-      time: relativeTime(b.finishTime || b.startTime) });
-  }
-}
-
 // --- Action Items: auto-prioritized ---
 const actions = [];
 for (const pr of reviewQueue) {
   actions.push(`Review PR !${pr.id} (waiting ${pr.waiting}d${pr.urgent ? ' — blocking @' + pr.author : ''})`);
-}
-for (const p of pipelines) {
-  if (p.result === 'failed') {
-    actions.push(`Check pipeline failure: ${p.name} on ${p.branch}`);
-  }
 }
 if (staleItems.length > 0) {
   const ids = staleItems.map(s => '#' + s.id).join(', ');
@@ -354,7 +311,7 @@ for (const pr of myPrs) {
 
 console.log(JSON.stringify({
   reviewQueue, myPrs, sprint: { total, done, inProgress, notStarted, needsAttention, pct, progressBar },
-  pipelines, staleItems, actions
+  staleItems, actions
 }));
 ```
 
@@ -381,13 +338,10 @@ Present the briefing in this exact format:
 > - {TOTAL} items: {DONE} done, {IN_PROGRESS} in progress, {NOT_STARTED} not started, {NEEDS_ATTENTION} need attention
 > - {PROGRESS_BAR} {PERCENT}% complete
 >
-> **Pipelines:**
-> - {PIPELINE_NAME} #{BUILD_NUMBER} — {RESULT_EMOJI} {RESULT} ({BRANCH}, {TIME_AGO})
->
 > **Action items:**
 > 1. Review PR !{ID} (waiting {N}d — blocking @{AUTHOR})
-> 2. Check pipeline failure on {BRANCH}
-> 3. {N} stale items need attention (#{ID}, #{ID})
+> 2. {N} stale items need attention (#{ID}, #{ID})
+> 3. Merge PR !{ID} ({TITLE})
 >
 > `{CALL_COUNT} API calls | ~{ELAPSED}s`
 
@@ -400,11 +354,11 @@ Present the briefing in this exact format:
 - Has rejections or "wait for author" -> "changes requested by @{name}"
 - No reviews yet -> "awaiting review"
 
-**Sprint Progress:** From Phase 3 batch data. Categorize by state:
-- Done states: Closed, Done, Resolved, Completed -> done
-- Active states: Active, In Progress, Committed, Open -> in progress
-- New states: New, To Do, Proposed -> not started
-- Stale (>14d no change) or tagged "Blocked" -> need attention
+**Sprint Progress:** From Phase 3 batch data. State check runs first, then stale:
+- Done states (Closed, Done, Resolved, Completed) → done (regardless of staleness)
+- Remaining items stale (>14d no change) or tagged "Blocked" → need attention
+- Active states (Active, In Progress, Committed, Open), not stale → in progress
+- All other states (New, To Do, Proposed), not stale → not started
 
 Progress bar: 16 chars wide, filled proportionally. `done / total * 100` = percent.
 
@@ -413,26 +367,16 @@ Progress bar chars: filled = █ (U+2588, FULL BLOCK), empty = ░ (U+2591, LIGH
 Example: ██████░░░░░░░░░░ 37% complete
 ```
 
-**Pipelines:** From Phase 4. Show result with emoji:
-- `succeeded` -> green checkmark
-- `failed` -> red X
-- `partiallySucceeded` -> warning
-- `canceled` -> canceled
-- `inProgress` -> running
-
-Show branch name and relative time ("2h ago", "yesterday").
-
 **Action Items:** Automatically prioritized list:
 1. PRs waiting for my review (oldest first, especially 3+ days)
-2. Pipeline failures on my branches
-3. Stale work items (>14d no change)
-4. PRs ready to merge (just need the button click)
+2. Stale work items (>14d no change)
+3. PRs ready to merge (just need the button click)
 
 If a section has 0 items, omit it entirely (except Sprint Progress, always show that).
 
 ---
 
-## Phase 6: Cleanup
+## Phase 5: Cleanup
 
 ```bash
 rm -f "$HOME"/ado-flow-tmp-*.json "$HOME"/ado-flow-tmp-*.js 2>/dev/null
@@ -450,8 +394,7 @@ rm -f "$HOME"/ado-flow-tmp-*.json "$HOME"/ado-flow-tmp-*.js 2>/dev/null
 | My active PRs | 1 | 1 |
 | WIQL (sprint items) | 1 | 1 |
 | Batch fetch | 1 | 1 |
-| Pipeline builds | 1 | 1 |
-| **Total (data)** | **6** | **5** |
+| **Total (data)** | **5** | **4** |
 
 **You MUST output the diagnostic line at the end of the briefing.**
 

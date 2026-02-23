@@ -183,4 +183,4 @@ Once classified as a morning request, follow the full instructions in the `adofl
 
 Use `{ORG}`, `{WORK_ITEM_PROJECT}`, and `{PR_PROJECT}` from the loaded config.
 
-Refer to the `adoflow-morning` command for the full workflow: fetch review queue, your PR status, sprint progress, pipeline builds, and generate prioritized action items.
+Refer to the `adoflow-morning` command for the full workflow: fetch review queue, your PR status, sprint progress, and generate prioritized action items.
