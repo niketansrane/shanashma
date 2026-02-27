@@ -6,6 +6,8 @@
 
 *Shanashma (शनश्म) — whetstone, in Sanskrit. A whetstone is an abrasive stone used to sharpen the edges of knives. The plugins marketplace here is supposed to sharpen the tools you already use. Starting with Claude Code plugins for Azure DevOps for now.*
 
+**Read the blog:** [Why I Built This](https://www.niketansrane.com/blogs/shanashma-claude-code-plugin-azure-devops/)
+
 ## How it looks
 
 <p align="center">
@@ -80,10 +82,6 @@ Or use the specific commands if you prefer:
 ```
 
 First-time setup will ask for your Azure DevOps organization and project. Configuration is saved to `~/.config/ado-flow/config.json`.
-
-## Why I Built This
-
-Read the blog post: [Shanashma — A Claude Code Plugin for Azure DevOps](https://www.niketansrane.com/blogs/shanashma-claude-code-plugin-azure-devops/)
 
 ## Contributing
 
