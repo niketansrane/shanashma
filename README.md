@@ -6,6 +6,8 @@
 
 *Shanashma (शनश्म) — whetstone, in Sanskrit. A whetstone is an abrasive stone used to sharpen the edges of knives. The plugins marketplace here is supposed to sharpen the tools you already use. Starting with Claude Code plugins for Azure DevOps for now.*
 
+**Read the blog:** [Why I Built This](https://www.niketansrane.com/blogs/shanashma-claude-code-plugin-azure-devops/)
+
 ## How it looks
 
 <p align="center">
