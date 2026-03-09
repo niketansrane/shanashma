@@ -375,19 +375,23 @@ node "$HOME/ado-flow-tmp-match.js"
 
 ## Phase 5: Present Matches and Confirm (0 az calls)
 
+For each resource, construct clickable links using values from config and the PR API response:
+- **PR:** `https://dev.azure.com/{ORG}/{pr.repository.project.name}/_git/{pr.repository.name}/pullrequest/{PR_ID}`
+- **Work item:** `https://dev.azure.com/{ORG}/{WI_PROJECT}/_workitems/edit/{ID}`
+
 Present the matches in this format:
 
 > **Unlinked PRs in {MONTH_NAME} sprint:**
 >
 > **Confident matches (from branch/title):**
-> 1. PR !{ID} "{TITLE}" (branch: {BRANCH}) -> #{WI_ID} {WI_TITLE}
-> 2. PR !{ID} "{TITLE}" (title mentions #{WI_ID}) -> #{WI_ID} {WI_TITLE}
+> 1. [PR !{ID}](https://dev.azure.com/{ORG}/{PR_PROJECT}/_git/{REPO}/pullrequest/{ID}) "{TITLE}" (branch: {BRANCH}) -> [#{WI_ID}](https://dev.azure.com/{ORG}/{WI_PROJECT}/_workitems/edit/{WI_ID}) {WI_TITLE}
+> 2. [PR !{ID}](https://dev.azure.com/{ORG}/{PR_PROJECT}/_git/{REPO}/pullrequest/{ID}) "{TITLE}" (title mentions #{WI_ID}) -> [#{WI_ID}](https://dev.azure.com/{ORG}/{WI_PROJECT}/_workitems/edit/{WI_ID}) {WI_TITLE}
 >
 > **Fuzzy matches (title similarity):**
-> 3. PR !{ID} "{TITLE}" -> likely #{WI_ID} ({WI_TITLE})?
+> 3. [PR !{ID}](https://dev.azure.com/{ORG}/{PR_PROJECT}/_git/{REPO}/pullrequest/{ID}) "{TITLE}" -> likely [#{WI_ID}](https://dev.azure.com/{ORG}/{WI_PROJECT}/_workitems/edit/{WI_ID}) ({WI_TITLE})?
 >
 > **No match found:**
-> 4. PR !{ID} "{TITLE}"
+> 4. [PR !{ID}](https://dev.azure.com/{ORG}/{PR_PROJECT}/_git/{REPO}/pullrequest/{ID}) "{TITLE}"
 >
 > Link? **[a]**ll-confident **[1-6]** individually **[s]**kip-all
 
@@ -424,8 +428,8 @@ az rest --method post \
 
 **One call per link.** Log results inline:
 
-> PR !{PR_ID} -> #{WI_ID} linked
-> PR !{PR_ID} -> #{WI_ID} FAILED: {error}
+> [PR !{PR_ID}](https://dev.azure.com/{ORG}/{PR_PROJECT}/_git/{REPO}/pullrequest/{PR_ID}) -> [#{WI_ID}](https://dev.azure.com/{ORG}/{WI_PROJECT}/_workitems/edit/{WI_ID}) linked
+> [PR !{PR_ID}](https://dev.azure.com/{ORG}/{PR_PROJECT}/_git/{REPO}/pullrequest/{PR_ID}) -> [#{WI_ID}](https://dev.azure.com/{ORG}/{WI_PROJECT}/_workitems/edit/{WI_ID}) FAILED: {error}
 
 **Error handling:** Log inline, continue batch. Never abort.
 

@@ -279,24 +279,30 @@ Unknown states → treat as IN_PROGRESS.
 - Skip items already in a done state.
 - Skip comments if "Sprint update:" already exists in discussion.
 
+### URL Construction
+
+For each resource, construct clickable links using values from config and the PR API response:
+- **Work item:** `https://dev.azure.com/{ORG}/{WI_PROJECT}/_workitems/edit/{ID}`
+- **PR:** `https://dev.azure.com/{ORG}/{pr.repository.project.name}/_git/{pr.repository.name}/pullrequest/{PR_ID}`
+
 ### Present Plan
 
 > **{AUTO_COUNT}/{TOTAL_COUNT} classified:**
 >
 > RESOLVE ({N})
-> `#{ID}` {TITLE} — PR !{PR_ID} merged {DATE}
+> [`#{ID}`](https://dev.azure.com/{ORG}/{WI_PROJECT}/_workitems/edit/{ID}) {TITLE} — [PR !{PR_ID}](https://dev.azure.com/{ORG}/{PR_PROJECT}/_git/{REPO}/pullrequest/{PR_ID}) merged {DATE}
 >
 > PR IN REVIEW ({N})
-> `#{ID}` {TITLE} — PR !{PR_ID} ({REVIEW_STATUS})
+> [`#{ID}`](https://dev.azure.com/{ORG}/{WI_PROJECT}/_workitems/edit/{ID}) {TITLE} — [PR !{PR_ID}](https://dev.azure.com/{ORG}/{PR_PROJECT}/_git/{REPO}/pullrequest/{PR_ID}) ({REVIEW_STATUS})
 >
 > IN PROGRESS ({N})
-> `#{ID}` {TITLE}
+> [`#{ID}`](https://dev.azure.com/{ORG}/{WI_PROJECT}/_workitems/edit/{ID}) {TITLE}
 >
 > NOT STARTED ({N})
-> `#{ID}` {TITLE}
+> [`#{ID}`](https://dev.azure.com/{ORG}/{WI_PROJECT}/_workitems/edit/{ID}) {TITLE}
 >
 > NEEDS INPUT ({M})
-> 1. `#{ID}` {TITLE} — stale 21d / carryover / changes requested
+> 1. [`#{ID}`](https://dev.azure.com/{ORG}/{WI_PROJECT}/_workitems/edit/{ID}) {TITLE} — stale 21d / carryover / changes requested
 >
 > `{CALL_COUNT} API calls | {WORK_ITEM_COUNT} items | ~{ELAPSED}s`
 >
@@ -331,8 +337,8 @@ Where `{MERGED_TAGS_FOR_ID}` = `mergedTags[{ID}]` from the parsed data (Phase 2c
 Present all together after auto-apply:
 
 > Items needing input:
-> 1. `#{ID}` {TITLE} — stale / carryover / changes requested
-> 2. PR !{PR_ID} "{TITLE}" — unlinked, likely match: `#{WI_ID}`
+> 1. [`#{ID}`](https://dev.azure.com/{ORG}/{WI_PROJECT}/_workitems/edit/{ID}) {TITLE} — stale / carryover / changes requested
+> 2. [PR !{PR_ID}](https://dev.azure.com/{ORG}/{PR_PROJECT}/_git/{REPO}/pullrequest/{PR_ID}) "{TITLE}" — unlinked, likely match: [`#{WI_ID}`](https://dev.azure.com/{ORG}/{WI_PROJECT}/_workitems/edit/{WI_ID})
 >
 > Actions: **r**esolve **b**:"reason" **x**remove **s**kip **y**link
 
