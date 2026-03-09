@@ -230,6 +230,21 @@ function readJson(name) {
 // Load user_id from config — do NOT hardcode the GUID as a string literal
 const config = JSON.parse(fs.readFileSync(p.join(home, '.config', 'ado-flow', 'config.json'), 'utf8'));
 const userId = config.user_id;
+const org = config.organization || config.ORG || '';
+const wiProject = config.work_item_project || config.WI_PROJECT || '';
+
+function prLink(pr) {
+  const proj = pr.repository?.project?.name || config.pr_project || config.PR_PROJECT || '';
+  const repo = pr.repository?.name || '';
+  const text = `PR !${pr.pullRequestId}`;
+  if (!org || !proj || !repo) return text;
+  return `[${text}](https://dev.azure.com/${org}/${proj}/_git/${repo}/pullrequest/${pr.pullRequestId})`;
+}
+function wiLink(id) {
+  const text = `#${id}`;
+  if (!org || !wiProject) return text;
+  return `[${text}](https://dev.azure.com/${org}/${wiProject}/_workitems/edit/${id})`;
+}
 
 const batch = readJson('ado-flow-tmp-batch.json');
 const myPrs = readJson('ado-flow-tmp-my-prs.json');
@@ -247,7 +262,7 @@ if (batch && batch.value) {
     const f = wi.fields;
     const state = f['System.State'];
     const title = f['System.Title'];
-    yesterday.push(`- #${wi.id} "${title}" (${state})`);
+    yesterday.push(`- ${wiLink(wi.id)} "${title}" (${state})`);
   }
 }
 
@@ -257,7 +272,7 @@ if (myPrs && myPrs.value) {
     if (pr.isDraft) continue;
     const status = pr.status === 'completed' ? 'merged' :
                    pr.status === 'abandoned' ? 'abandoned' : 'created';
-    yesterday.push(`- PR !${pr.pullRequestId} "${pr.title}" — ${status}`);
+    yesterday.push(`- ${prLink(pr)} "${pr.title}" — ${status}`);
   }
 }
 
@@ -273,7 +288,7 @@ if (reviewedPrs && reviewedPrs.value) {
                       myVote.vote === 5 ? 'approved with suggestions' :
                       myVote.vote === -5 ? 'waiting for author' :
                       myVote.vote === -10 ? 'rejected' : 'reviewed';
-    yesterday.push(`- Reviewed PR !${pr.pullRequestId} "${pr.title}" by @${pr.createdBy.displayName} (${voteLabel})`);
+    yesterday.push(`- Reviewed ${prLink(pr)} "${pr.title}" by @${pr.createdBy.displayName} (${voteLabel})`);
   }
 }
 
@@ -289,14 +304,14 @@ if (batch && batch.value) {
     const f = wi.fields;
     const daysAgo = Math.floor((now - new Date(f['System.ChangedDate'])) / 86400000);
     const age = daysAgo <= 1 ? 'today' : `${daysAgo}d ago`;
-    today.push(`- #${wi.id} ${f['System.Title']} (${f['System.State']}, ${age})`);
+    today.push(`- ${wiLink(wi.id)} ${f['System.Title']} (${f['System.State']}, ${age})`);
   }
 }
 // Active PRs awaiting review
 if (myPrs && myPrs.value) {
   for (const pr of myPrs.value) {
     if (pr.status === 'active' && !pr.isDraft) {
-      today.push(`- PR !${pr.pullRequestId} awaiting review (${pr.title})`);
+      today.push(`- ${prLink(pr)} awaiting review (${pr.title})`);
     }
   }
 }
@@ -311,9 +326,9 @@ if (batch && batch.value) {
     const daysStale = Math.floor((now - changedDate) / 86400000);
     const tags = (f['System.Tags'] || '').toLowerCase();
     if (daysStale > STALE_DAYS) {
-      blockers.push(`- #${wi.id} ${f['System.Title']} — stale ${daysStale}d, no activity`);
+      blockers.push(`- ${wiLink(wi.id)} ${f['System.Title']} — stale ${daysStale}d, no activity`);
     } else if (tags.includes('blocked')) {
-      blockers.push(`- #${wi.id} ${f['System.Title']} — tagged Blocked`);
+      blockers.push(`- ${wiLink(wi.id)} ${f['System.Title']} — tagged Blocked`);
     }
   }
 }
@@ -332,17 +347,17 @@ STANDUP_DATE = today's date formatted as "Mon DD, YYYY" (e.g., "Feb 21, 2026")
 > **Standup — {STANDUP_DATE}**
 >
 > **Yesterday:**
-> - Merged PR !1478 "Add OAuth support" -> resolved #5162
-> - Moved #5169 to Active (OpenTelemetry trace propagation)
-> - Reviewed PR !1474 by @alice (approved)
+> - Merged [PR !1478](https://dev.azure.com/{ORG}/{PROJECT}/_git/{REPO}/pullrequest/1478) "Add OAuth support" -> resolved [#5162](https://dev.azure.com/{ORG}/{WI_PROJECT}/_workitems/edit/5162)
+> - Moved [#5169](https://dev.azure.com/{ORG}/{WI_PROJECT}/_workitems/edit/5169) to Active (OpenTelemetry trace propagation)
+> - Reviewed [PR !1474](https://dev.azure.com/{ORG}/{PROJECT}/_git/{REPO}/pullrequest/1474) by @alice (approved)
 >
 > **Today:**
-> - #5172 AI recommendations not working (Active, assigned to me)
-> - #5147 Split models.py into package (Active, 10d ago)
-> - PR !1462 awaiting review (Fix SLA breach)
+> - [#5172](https://dev.azure.com/{ORG}/{WI_PROJECT}/_workitems/edit/5172) AI recommendations not working (Active, assigned to me)
+> - [#5147](https://dev.azure.com/{ORG}/{WI_PROJECT}/_workitems/edit/5147) Split models.py into package (Active, 10d ago)
+> - [PR !1462](https://dev.azure.com/{ORG}/{PROJECT}/_git/{REPO}/pullrequest/1462) awaiting review (Fix SLA breach)
 >
 > **Blockers:**
-> - #4920 TMP Migration — stale 21d, no activity
+> - [#4920](https://dev.azure.com/{ORG}/{WI_PROJECT}/_workitems/edit/4920) TMP Migration — stale 21d, no activity
 >
 > `{CALL_COUNT} API calls | ~{ELAPSED}s`
 

@@ -208,6 +208,20 @@ function readJson(name) {
 // Load user_id from config — do NOT hardcode the GUID as a string literal
 const config = JSON.parse(fs.readFileSync(p.join(home, '.config', 'ado-flow', 'config.json'), 'utf8'));
 const userId = config.user_id;
+const org = config.organization || config.ORG || '';
+const wiProject = config.work_item_project || config.WI_PROJECT || '';
+
+function prLink(prObj) {
+  const proj = prObj.project || config.pr_project || config.PR_PROJECT || '';
+  const text = `PR !${prObj.id}`;
+  if (!org || !proj || !prObj.repo) return text;
+  return `[${text}](https://dev.azure.com/${org}/${proj}/_git/${prObj.repo}/pullrequest/${prObj.id})`;
+}
+function wiLink(id) {
+  const text = `#${id}`;
+  if (!org || !wiProject) return text;
+  return `[${text}](https://dev.azure.com/${org}/${wiProject}/_workitems/edit/${id})`;
+}
 
 const reviewQueueRaw = readJson('ado-flow-tmp-review-queue.json');
 const myPrsRaw = readJson('ado-flow-tmp-my-prs.json');
@@ -236,7 +250,8 @@ if (reviewQueueRaw && reviewQueueRaw.value) {
     if (!myReview || myReview.vote === 0) {
       const waiting = daysAgo(pr.creationDate);
       reviewQueue.push({ id: pr.pullRequestId, title: pr.title,
-        author: pr.createdBy?.displayName || 'unknown', waiting, urgent: waiting >= 3 });
+        author: pr.createdBy?.displayName || 'unknown', waiting, urgent: waiting >= 3,
+        repo: pr.repository?.name || '', project: pr.repository?.project?.name || '' });
     }
   }
   reviewQueue.sort((a, b) => b.waiting - a.waiting); // oldest first
@@ -258,7 +273,8 @@ if (myPrsRaw && myPrsRaw.value) {
     } else {
       status = 'awaiting review';
     }
-    myPrs.push({ id: pr.pullRequestId, title: pr.title, status });
+    myPrs.push({ id: pr.pullRequestId, title: pr.title, status,
+      repo: pr.repository?.name || '', project: pr.repository?.project?.name || '' });
   }
 }
 
@@ -297,15 +313,15 @@ const progressBar = '\u2588'.repeat(filled) + '\u2591'.repeat(barLen - filled);
 // --- Action Items: auto-prioritized ---
 const actions = [];
 for (const pr of reviewQueue) {
-  actions.push(`Review PR !${pr.id} (waiting ${pr.waiting}d${pr.urgent ? ' — blocking @' + pr.author : ''})`);
+  actions.push(`Review ${prLink(pr)} (waiting ${pr.waiting}d${pr.urgent ? ' — blocking @' + pr.author : ''})`);
 }
 if (staleItems.length > 0) {
-  const ids = staleItems.map(s => '#' + s.id).join(', ');
+  const ids = staleItems.map(s => wiLink(s.id)).join(', ');
   actions.push(`${staleItems.length} stale item${staleItems.length > 1 ? 's' : ''} need attention (${ids})`);
 }
 for (const pr of myPrs) {
   if (pr.status.includes('ready to merge')) {
-    actions.push(`Merge PR !${pr.id} (${pr.title})`);
+    actions.push(`Merge ${prLink(pr)} (${pr.title})`);
   }
 }
 
@@ -326,22 +342,22 @@ Present the briefing in this exact format:
 > **Morning Briefing — {DATE}**
 >
 > **Review Queue ({N} PRs waiting for you):**
-> - PR !{ID} "{TITLE}" by @{AUTHOR} — waiting {N}d {WARNING_IF_3D+}
-> - PR !{ID} "{TITLE}" by @{AUTHOR} — waiting {N}d
+> - [PR !{ID}](https://dev.azure.com/{ORG}/{PROJECT}/_git/{REPO}/pullrequest/{ID}) "{TITLE}" by @{AUTHOR} — waiting {N}d {WARNING_IF_3D+}
+> - [PR !{ID}](https://dev.azure.com/{ORG}/{PROJECT}/_git/{REPO}/pullrequest/{ID}) "{TITLE}" by @{AUTHOR} — waiting {N}d
 >
 > **Your PRs:**
-> - PR !{ID} "{TITLE}" — {APPROVALS} approvals, ready to merge
-> - PR !{ID} "{TITLE}" — changes requested by @{REVIEWER}
-> - PR !{ID} "{TITLE}" — merged yesterday
+> - [PR !{ID}](https://dev.azure.com/{ORG}/{PROJECT}/_git/{REPO}/pullrequest/{ID}) "{TITLE}" — {APPROVALS} approvals, ready to merge
+> - [PR !{ID}](https://dev.azure.com/{ORG}/{PROJECT}/_git/{REPO}/pullrequest/{ID}) "{TITLE}" — changes requested by @{REVIEWER}
+> - [PR !{ID}](https://dev.azure.com/{ORG}/{PROJECT}/_git/{REPO}/pullrequest/{ID}) "{TITLE}" — merged yesterday
 >
 > **Sprint Progress ({MONTH_NAME}):**
 > - {TOTAL} items: {DONE} done, {IN_PROGRESS} in progress, {NOT_STARTED} not started, {NEEDS_ATTENTION} need attention
 > - {PROGRESS_BAR} {PERCENT}% complete
 >
 > **Action items:**
-> 1. Review PR !{ID} (waiting {N}d — blocking @{AUTHOR})
-> 2. {N} stale items need attention (#{ID}, #{ID})
-> 3. Merge PR !{ID} ({TITLE})
+> 1. Review [PR !{ID}](https://dev.azure.com/{ORG}/{PROJECT}/_git/{REPO}/pullrequest/{ID}) (waiting {N}d — blocking @{AUTHOR})
+> 2. {N} stale items need attention ([#{ID}](https://dev.azure.com/{ORG}/{WI_PROJECT}/_workitems/edit/{ID}), ...)
+> 3. Merge [PR !{ID}](https://dev.azure.com/{ORG}/{PROJECT}/_git/{REPO}/pullrequest/{ID}) ({TITLE})
 >
 > `{CALL_COUNT} API calls | ~{ELAPSED}s`
 
